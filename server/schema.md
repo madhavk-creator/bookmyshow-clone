@@ -60,25 +60,43 @@ USER
 ---
 
 ### SCREEN
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| theatre_id | uuid | FK → THEATRE.id |
-| name | string | e.g. "Screen 1", "IMAX Hall" |
-| capabilities | string | e.g. `2D`, `3D`, `4DX`, `IMAX` — used to validate SHOW.format |
-| total_rows | int | |
-| total_columns | int | |
+| Column        | Type | Notes |
+|---------------|---|---|
+| id            | uuid | PK |
+| theatre_id    | uuid | FK → THEATRE.id |
+| name          | string | e.g. "Screen 1", "IMAX Hall" |
+| status        | enum | `active`, `inactive` — for maintenance etc. |
+| total_rows    | int |  |
+| total_columns | int |  |
+| total_seats   | int | derived from SEAT count where is_active = true |
 
 ---
 
-### SEAT
+### SCREEN_CAPABILITY
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
 | screen_id | uuid | FK → SCREEN.id |
-| type | enum | `silver`, `gold`, `premium`, `recliner` |
-| row_label | string | e.g. `A`, `B`, `C` |
-| seat_number | int | e.g. `1`, `2`, `3` |
+| capability | enum | `2D`, `3D`, `4DX`, `IMAX` |
+unique(screen_id, capability)
+
+### SEAT
+| Column       | Type    | Notes |
+|---|---|---|
+| id           | uuid    | PK |
+| screen_id    | uuid    | FK → SCREEN.id |
+| type         | enum    | silver, gold, premium, recliner |
+| row_label    | string  | A, B, C — assigned when owner finalises layout |
+| seat_number  | int     | 1, 2, 3 — assigned left to right within the row |
+| label        | string  | derived + stored: row_label + seat_number e.g. B12 |
+| x_position   | int     | grid column index (0-based) |
+| y_position   | int     | grid row index (0-based) |
+| col_span     | int     | default 1 — recliners may be 2 |
+| row_span     | int     | default 1 — rarely > 1 |
+| is_accessible| boolean | wheelchair-accessible seat |
+| is_active    | boolean | false = seat exists but disabled (maintenance etc.) |
+UNIQUE (screen_id, x_position, y_position)
+UNIQUE (screen_id, label)
 
 > Seat availability is **not** stored here — it lives in `SHOW_SEAT` per show.
 
@@ -142,7 +160,9 @@ USER
 | start_time | datetime | |
 | end_time | datetime | derived: `start_time + MOVIE.running_time` |
 | available_seats |  int  | -- decremented on lock/booking, incremented on cancellation/lock expiry
-| total_capacity    | int  |  -- set once when show is created (= total seats in screen), from total no of rows * total no of columns
+| total_capacity    | int  |  -- set once when show is created (SELECT COUNT(*) FROM seat
+WHERE screen_id = :screen_id
+AND is_active = true)
 
 > `movie_language_id` and `movie_format_id` enforce that only supported languages/formats can be scheduled.
 > At the API level, validate that `movie_format_id.format` is present in `SCREEN.capabilities`.
@@ -156,6 +176,7 @@ USER
 | show_id | uuid | FK → SHOW.id |
 | seat_type | enum | `silver`, `gold`, `premium`, `recliner` |
 | base_price | decimal | set by admin when scheduling the show |
+UNIQUE (show_id, seat_type)
 
 > This is the source of truth for pricing. `TICKET.price` starts from here and adjusts for discounts/coupons.
 > A show must have a price row for every seat type present in the screen.
@@ -215,6 +236,11 @@ USER
 | transaction_id | string | from payment gateway (Razorpay, Stripe, etc.) |
 | paid_at | datetime | nullable — set on completion |
 
+
+`CREATE UNIQUE INDEX one_completed_payment_per_booking
+ON payment(booking_id)
+WHERE status = 'completed';`
+
 ---
 
 ### REVIEW
@@ -227,7 +253,15 @@ USER
 | rating | decimal | `1.0` to `5.0` |
 | date | date | |
 
-> Consider adding a unique constraint on `(movie_id, user_id)` so a user can only review a movie once.
+>unique constraint on `(movie_id, user_id)` so a user can only review a movie once.
+> check for if user had purchased a ticket for movie they are reviewing to be enforced at api layer
+`SELECT 1 FROM ticket t
+JOIN show_seat ss ON ss.id = t.show_seat_id
+JOIN show sh      ON sh.id = ss.show_id
+WHERE t.booking_id IN (SELECT id FROM booking WHERE user_id = :user_id)
+  AND sh.movie_id = :movie_id
+  AND t.status = 'valid'
+LIMIT 1;`
 
 ---
 

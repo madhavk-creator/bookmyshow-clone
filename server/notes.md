@@ -8,3 +8,12 @@ TICKET.status vs BOOKING.status. Right now both have a status enum. Think throug
 > `booking.show_id` is a soft constraint — the application must ensure all tickets under this booking belong to the same show.
 
 > Consider adding a unique constraint on `(movie_id, user_id)` so a user can only review a movie once. in review
+> 
+> `SHOW.total_capacity` is set once when the show is created, based on the screen's seating configuration. This is a denormalization for performance — it avoids having to join with SEAT/SHOW_SEAT to calculate available seats during booking. The application must ensure this value stays consistent with the actual number of seats in the screen.
+> for seat availability, we can calculate it as: `available_seats = total_capacity - COUNT(WHERE show_seat.status IN ('locked', 'booked'))` for that show. This is a common pattern in booking systems to optimize read performance at the cost of some denormalization complexity.
+> seat layouts 
+for each unique y_position (sorted ascending):
+    assign row_label = A, B, C... (skip y gaps — they're aisles between sections)
+        for each seat at that y (sorted by x_position ascending):
+            assign seat_number = 1, 2, 3... (skip x gaps — they're aisle columns)
+                set label = row_label + seat_number
