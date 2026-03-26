@@ -106,6 +106,9 @@ GEM
       declarative (>= 0.0.9, < 1.0.0)
       representable (>= 3.1.1, < 4)
     dotenv (3.2.0)
+    dotenv-rails (3.2.0)
+      dotenv (= 3.2.0)
+      railties (>= 6.1)
     drb (2.2.3)
     ed25519 (1.4.0)
     erb (6.0.2)
@@ -138,6 +141,8 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.19.2)
+    jwt (3.1.2)
+      base64
     kamal (2.11.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
@@ -404,7 +409,9 @@ DEPENDENCIES
   bundler-audit
   debug
   devise (~> 5.0)
+  dotenv-rails (~> 3.2)
   image_processing (~> 1.2)
+  jwt (~> 3.1)
   kamal
   pg (~> 1.1)
   puma (>= 5.0)

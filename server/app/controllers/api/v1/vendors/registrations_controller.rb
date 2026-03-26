@@ -1,6 +1,6 @@
-module Api::V1::Users
+module Api::V1::Vendors
   class RegistrationsController < Api::V1::BaseRegistrationsController
     private
-    def operation_class = User::Register
+    def operation_class = Vendor::Register
   end
 end

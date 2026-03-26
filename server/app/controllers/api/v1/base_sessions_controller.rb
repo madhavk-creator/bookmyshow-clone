@@ -30,7 +30,7 @@ module Api
           render json: { error: 'Invalid email or password' }, status: :unauthorized and return
         end
 
-        token = JsonWebToken.encode({ user_id: user.id, role: user.role })
+        token = JsonWebToken.encode({ user_id: user.id })
 
         render json: {
           token: token,
@@ -44,11 +44,20 @@ module Api
         raise NotImplementedError
       end
 
-      def email_param    = params.dig(:user, :email)&.downcase&.strip
-      def password_param = params.dig(:user, :password)
+      def login_payload
+        params
+      end
+
+      def email_param
+        login_payload[:email]&.downcase&.strip
+      end
+
+      def password_param
+        login_payload[:password]
+      end
 
       def serialize(user)
-        { id: user.id, name: user.name, email: user.email, role: user.role }
+        { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
       end
     end
   end

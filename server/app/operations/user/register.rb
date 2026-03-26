@@ -1,4 +1,4 @@
-module User
+class User
   class Register < Trailblazer::Operation
     step :validate_params
     step :build_user
@@ -43,8 +43,8 @@ module User
       model.save   # false triggers fail track
     end
 
-    def collect_errors(ctx, model:, **)
-      ctx[:errors] = model.errors.to_hash(true)
+    def collect_errors(ctx, **)
+      ctx[:errors] = ctx[:model].errors.to_hash(true)
     end
   end
 end

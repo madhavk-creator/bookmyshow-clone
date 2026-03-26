@@ -30,9 +30,8 @@ module JsonWebToken
   end
 
   def secret
-    Rails.application.credentials.jwt_secret_key!
+    Rails.application.credentials.fetch(:jwt_secret_key, '2d90b3961b1e7bf4c390975ce47d49e1657ea73506668cf9c08a172690154d55')
   end
 
-  # Typed error so callers can rescue specifically without catching everything.
   class Error < StandardError; end
 end
