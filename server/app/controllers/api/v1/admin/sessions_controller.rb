@@ -1,6 +1,6 @@
-module Api::V1::Users
+module Api::V1::Admin
   class SessionsController < Api::V1::BaseSessionsController
     private
-    def expected_role = :user
+    def expected_role = :admin
   end
 end
