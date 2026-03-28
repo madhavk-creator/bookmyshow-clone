@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-500: #8b5cf6;
+  --color-primary-600: #7c3aed;
+  --color-dark-bg: #0b090f;
+  --color-glass-card: rgba(30, 27, 36, 0.6);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --animate-float: float 6s ease-in-out infinite;
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-neutral-50 text-neutral-900 dark:bg-dark-bg dark:text-neutral-100 antialiased selection:bg-primary-500/30;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-xl;
+  }
+  .glass-card {
+    @apply bg-white/80 dark:bg-[rgba(30,27,36,0.6)] backdrop-blur-lg border border-neutral-200 dark:border-glass-border shadow-2xl rounded-2xl transition-all duration-300;
+  }
+  .glass-card:hover {
+    @apply shadow-primary-500/20 shadow-2xl border-primary-500/30 transform -translate-y-1;
+  }
+  .glow-text {
+    text-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+  }
+  .nav-link {
+    @apply text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-500 transition-colors font-medium;
+  }
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-500 hover:to-purple-500 text-white font-medium py-2.5 px-6 rounded-xl shadow-lg shadow-primary-500/30 transition-all hover:shadow-primary-500/50 hover:scale-105 active:scale-95;
+  }
+  .input-field {
+    @apply w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl pr-4 pl-10 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all;
+  }
+}

@@ -2,8 +2,8 @@ class Screen < ApplicationRecord
   belongs_to :theatre
   has_many :screen_capabilities, dependent: :destroy
   has_many :formats, through: :screen_capabilities
-  has_one :seat_layout, dependent: :destroy
-  has_many :seats, dependent: :restrict_with_error
+  has_many :seat_layouts, dependent: :destroy
+  has_many :seats, through: :seat_layouts
   has_many :shows, dependent: :restrict_with_error
 
   enum :status, { active: "active", inactive: "inactive" }

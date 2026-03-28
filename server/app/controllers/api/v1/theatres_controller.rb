@@ -6,10 +6,15 @@ module Api
       # GET /api/v1/theatres
       # Public. Supports ?city_id= and ?vendor_id= filters.
       def index
+
+
+        conditions ={}
+        conditions[:city_id] = params[:city_id] if params[:city_id].present?
+        conditions[:vendor_id] = params[:vendor_id] if params[:vendor_id].present
+
         theatres = policy_scope(Theatre)
                      .includes(:city, :vendor)
-                     .then { |q| params[:city_id].present?   ? q.where(city_id: params[:city_id])     : q }
-                     .then { |q| params[:vendor_id].present? ? q.where(vendor_id: params[:vendor_id]) : q }
+                      .where(conditions)
                      .order(:name)
 
         render json: serialize_many(theatres)
