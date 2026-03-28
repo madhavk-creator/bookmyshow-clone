@@ -42,7 +42,10 @@ module Api
 
         authorize record
 
-        result = update_operation.call(params: permitted_params.to_h.merge(id: params[:id]))
+        result = update_operation.call(
+          params: permitted_params.to_h, 
+          model: record 
+        )
 
         if result.success?
           render json: serialize(result[:model])
@@ -59,7 +62,7 @@ module Api
 
         authorize record
 
-        result = destroy_operation.call(params: { id: params[:id] })
+        result = destroy_operation.call(model: record)
 
         if result.success?
           render json: { message: "#{model_class.name} deleted successfully" }

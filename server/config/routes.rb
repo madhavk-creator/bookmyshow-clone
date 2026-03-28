@@ -21,6 +21,8 @@ Rails.application.routes.draw do
       resources :languages, only: %i[index show create update destroy]
       resources :formats,   only: %i[index show create update destroy]
 
+      resources :movies,    only: %i[index show create update destroy]
+
       resources :theatres, only: %i[index show create update destroy] do
         resources :screens,  only: %i[index show create update destroy]
       end

@@ -44,3 +44,44 @@
 #       "format_ids": ["uuid-1", "uuid-2"]   ← optional, replaces all capabilities
 #     }
 #   }
+
+# Movies Create/update payload:
+#   {
+#     "movie": {
+#       "title": "Dune Part Two",
+#       "genre": "Sci-Fi",
+#       "rating": "UA",
+#       "description": "...",
+#       "director": "Denis Villeneuve",
+#       "running_time": 166,
+#       "release_date": "2024-03-01",
+#       "language_entries": [
+#         { "language_id": "uuid", "type": "original" },
+#         { "language_id": "uuid", "type": "dubbed" }
+#       ],
+#       "format_ids": ["uuid", "uuid"],
+#       "cast_members": [
+#         { "name": "Timothée Chalamet", "role": "actor", "character_name": "Paul Atreides" },
+#         { "name": "Denis Villeneuve",  "role": "director", "character_name": null }
+#       ]
+#     }
+#   }
+#
+# cast_members is replace-on-update when present — omitting it leaves existing cast untouched.
+
+# Index filters:
+#   ?genre=    — filter by genre (case-insensitive)
+#   ?language= — filter by language code (e.g. hi, en, ta)
+#   ?format=   — filter by format code (e.g. 2d, imax)
+#   ?city_id=  — only movies with at least one scheduled show in that city
+#
+#  Movies
+#   GET    /api/v1/movies                  public
+#                                          ?genre=Sci-Fi
+#                                          ?language=hi
+#                                          ?format=imax
+#                                          ?city_id=uuid
+#   GET    /api/v1/movies/:id              public — full detail + cast
+#   POST   /api/v1/movies                  admin only
+#   PATCH  /api/v1/movies/:id              admin only
+#   DELETE /api/v1/movies/:id              admin only

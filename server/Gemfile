@@ -57,6 +57,6 @@ gem "pundit", "~> 2.5"
 
 gem 'trailblazer-rails'
 
-gem "dotenv-rails", "~> 3.2"
+gem "dotenv-rails", "~> 3.2", require: "dotenv/load"
 
 gem "jwt", "~> 3.1"
