@@ -16,6 +16,10 @@ module Authenticatable
       render json: { error: 'Unauthorized' }, status: :unauthorized and return
     end
 
+    if payload[:iat].present? && payload[:iat].to_i < user.updated_at.to_i
+      render json: { error: 'Token is no longer valid. Please login again.' }, status: :unauthorized and return
+    end
+
     @current_user = user
   end
 
