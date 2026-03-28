@@ -1,388 +1,569 @@
-# Movie Booking System — Database Schema
+# Movie Booking System - Database Schema
 
 ## Overview
 
+This schema is designed for a modern cinema booking flow where:
+
+- screen geometry is modeled once and versioned safely
+- each show uses an immutable seat layout snapshot
+- the seat picker can render live availability, accessibility, and section pricing
+- historical tickets remain correct even if the screen layout changes later
+
 The schema is organized into five logical groups:
 
-- **Users & Theatres** — identity, roles, venue management
-- **Movies** — film metadata, cast, supported languages and formats
-- **Shows** — scheduled screenings, seat inventory and locking
-- **Bookings** — user purchases, tickets, pricing and payments
-- **Reviews** — user-generated movie ratings
+- Users & theatres
+- Movies & metadata
+- Screens, layouts, and seats
+- Shows, pricing, and seat state
+- Bookings, payments, and reviews
 
 ---
 
 ## Entity Flow
 
-```
+```text
 VENDOR
  └── manages THEATRE
        └── has SCREEN
-             ├── contains SEAT
+             ├── supports FORMAT via SCREEN_CAPABILITY
+             ├── has many SEAT_LAYOUT versions
+             │     ├── has SECTIONs
+             │     └── has SEATs
              └── hosts SHOW
-                   ├── references MOVIE (language + format validated)
-                   ├── has SHOW_SEAT (transient state for active locks/checkouts)
-                   └── has SHOW_PRICE (base price per seat type)
+                   ├── references MOVIE + selected MOVIE_LANGUAGE + MOVIE_FORMAT
+                   ├── points to one immutable SEAT_LAYOUT version
+                   ├── has SHOW_SECTION_PRICE
+                   └── has SHOW_SEAT_STATE for live lock / booked / blocked state
 
 USER
- └── makes BOOKING (for a SHOW)
-       ├── contains TICKET (linked permanently to SHOW and SEAT)
-       └── paid via PAYMENT
+ └── makes BOOKING for one SHOW
+       ├── contains TICKETs for chosen seats
+       └── pays through PAYMENT / TRANSACTION
 
 USER
- └── writes REVIEW (for a MOVIE)
+ └── writes REVIEW for a MOVIE
 ```
+
+---
+
+## Core Design Principles
+
+### 1. Layout versioning is mandatory
+
+Do not let `SHOW`, `TICKET`, or seat history depend on a mutable current screen layout.
+
+When a screen layout changes:
+
+- create a new `SEAT_LAYOUT` version
+- copy sections and seats into the new version
+- future shows use the new version
+- existing shows keep referencing the older version
+
+This prevents historical bookings from breaking when seat labels, coordinates, or sections are edited.
+
+### 2. Visual layout and transactional seats must use the same source of truth
+
+Avoid storing the real seat map only in ad hoc JSON.
+
+The UI should render from relational seat rows with coordinates plus optional layout metadata, so:
+
+- every rendered seat maps to one stable `SEAT.id`
+- section colors and legends remain consistent
+- pricing and occupancy can be joined directly
+
+### 3. Pricing should be by section, not only by seat type
+
+Modern seat pickers usually show sections such as Premium, Executive, Recliner, Lounge, etc.
+
+Use `SHOW_SECTION_PRICE` as the default price source, and allow optional per-seat overrides later if needed.
 
 ---
 
 ## Tables
 
 ### USER
-| Column    | Type    | Notes                                                    |
-|-----------|---------|----------------------------------------------------------|
-| id        | uuid    | PK                                                       |
-| name      | string  |                                                          |
-| email     | string  | unique                                                   |
-| password  | string  | hashed                                                   |
-| phone     | string  |                                                          |
-| role      | enum    | `user`, `admin`, `vendor`                                |
-| is_active | boolean | default true — for soft deletes and account deactivation |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| name | string | |
+| email | string | unique |
+| encrypted_password | string | Devise-managed |
+| phone | string | |
+| role | enum/string | `user`, `admin`, `vendor` |
+| is_active | boolean | default true |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
 
----
 ### CITY
-| Column | Type   | Notes |
-|--------|--------|-------|
-| id     | uuid   | PK    |
-| name   | string |       |
-| state  | string |       |
-unique(name, state) — to prevent duplicate city entries
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| name | string | |
+| state | string | |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+Unique: `(name, state)`
+
 ---
 
 ### THEATRE
-| Column         | Type   | Notes        |
-|----------------|--------|--------------|
-| id             | uuid   | PK           |
-| vendor_id      | uuid   | FK → USER.id |
-| name           | string |              |
-| building_name  | string |              |
-| street_address | string |              |
-| city_id        | uuid   | FK → CITY.id |
-| pincode        | string |              |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| vendor_id | uuid | FK -> USER.id |
+| name | string | |
+| building_name | string | nullable |
+| street_address | string | nullable |
+| city_id | uuid | FK -> CITY.id |
+| pincode | string | nullable |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
 
 ### SCREEN
-| Column        | Type   | Notes                                          |
-|---------------|--------|------------------------------------------------|
-| id            | uuid   | PK                                             |
-| theatre_id    | uuid   | FK → THEATRE.id                                |
-| name          | string | e.g. "Screen 1", "IMAX Hall"                   |
-| status        | enum   | `active`, `inactive` — for maintenance etc.    |
-| total_rows    | int    |                                                |
-| total_columns | int    |                                                |
-| total_seats   | int    | derived from SEAT count where is_active = true |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| theatre_id | uuid | FK -> THEATRE.id |
+| name | string | unique within theatre |
+| status | enum/string | `active`, `inactive` |
+| total_rows | integer | current published layout bounds |
+| total_columns | integer | current published layout bounds |
+| total_seats | integer | current published layout active seat count |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> SCREEN.total_seats must be recomputed whenever SEAT.is_active changes on any seat belonging to that screen. Same as SHOW.total_capacity — snapshot on creation, explicitly recomputed on change.
+`total_rows`, `total_columns`, and `total_seats` should reflect the latest published layout only. Historical shows must not depend on these values.
 
 ---
 
 ### SCREEN_CAPABILITY
-| Column    | Type | Notes                     |
-|-----------|------|---------------------------|
-| id        | uuid | PK                        |
-| screen_id | uuid | FK → SCREEN.id            |
-| format_id | uuid | FK → FORMAT.id            |
-unique(screen_id, capability)
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| screen_id | uuid | FK -> SCREEN.id |
+| format_id | uuid | FK -> FORMAT.id |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-### SEAT
-| Column        | Type    | Notes                                               |
-|---------------|---------|-----------------------------------------------------|
-| id            | uuid    | PK                                                  |
-| screen_id     | uuid    | FK → SCREEN.id                                      |
-| type          | enum    | silver, gold, premium, recliner                     |
-| label         | string  | derived + stored: row_label + seat_number e.g. B12  |
-| is_accessible | boolean | wheelchair-accessible seat                          |
-| is_active     | boolean | false = seat exists but disabled (maintenance etc.) |
-UNIQUE (screen_id, label)
+Unique: `(screen_id, format_id)`
 
----
-### SEAT_LAYOUT
-| Column      | Type  | Notes                                              |
-|-------------|-------|----------------------------------------------------|
-| id          | uuid  | PK                                                 |
-| screen_id   | uuid  | FK → SCREEN.id                                     |
-| layout_json | jsonb | stores the seat arrangement as a JSON object, e.g. |
+This table is already correctly modeled in the current migration.
 
-```json
-{
-  "rows": [
-    {
-      "row_label": "A",
-      "seats": [
-        {"x":  0, "y":  1,"seat_number": 1},
-        {"x":  0, "y":  2,"seat_number": 2},
-        {"x":  0, "y":  3,"seat_number": 3}
-      ]
-    },
-    {
-      "row_label": "B",
-      "seats": [    
-        {"x":  1, "y":  1,"seat_number": 1},
-        {"x":  1, "y":  2,"seat_number": 2},
-        {"x":  1, "y":  4,"seat_number": 3}
-      ]
-    }
-  ]}
-```
 ---
 
 ### LANGUAGE
-| Column | Type   | Notes                 |
-|--------|--------|-----------------------|
-| id     | uuid   | PK                    |
-| name   | string | unique                |
-| code   | string | e.g. `en`, `hi`, `ta` |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| name | string | unique |
+| code | string | unique, e.g. `en`, `hi`, `ta` |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
 
 ### FORMAT
-| Column | Type   | Notes                   |
-|--------|--------|-------------------------|
-| id     | uuid   | PK                      |
-| name   | string | unique                  |
-| code   | string | e.g. `2d`, `3d`, `imax` |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| name | string | unique |
+| code | string | unique, e.g. `2d`, `3d`, `imax` |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+---
 
 ### MOVIE
-| Column            | Type   | Notes                  |
-|-------------------|--------|------------------------|
-| id                | uuid   | PK                     |
-| title             | string |                        |
-| genre             | string |                        |
-| rating            | enum   | `U`, `UA`, `A`, `S`    |
-| movie_language_id | uuid   | FK → MOVIE_LANGUAGE.id |
-| movie_format_id   | uuid   | FK → MOVIE_FORMAT.id   |
-| description       | text   |                        |
-| director          | string |                        |
-| running_time      | int    | in minutes             |
-| release_date      | date   |                        |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| title | string | |
+| genre | string | |
+| rating | enum/string | `U`, `UA`, `A`, `S` |
+| description | text | nullable |
+| director | string | nullable |
+| running_time | integer | minutes |
+| release_date | date | nullable |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+This matches the direction of the current migrations better than the old draft.
 
 ---
 
 ### MOVIE_LANGUAGE
-| Column      | Type   | Notes                                |
-|-------------|--------|--------------------------------------|
-| id          | uuid   | PK                                   |
-| movie_id    | uuid   | FK → MOVIE.id                        |
-| language_id | uuid   | FK → LANGUAGE.id                     |
-| type        | enum   | `original`, `dubbed`, `subtitled`    |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| movie_id | uuid | FK -> MOVIE.id |
+| language_id | uuid | FK -> LANGUAGE.id |
+| language_type | enum/string | `original`, `dubbed`, `subtitled` |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-unique(movie_id, language_id) — a movie can only have one entry per language
+Unique: `(movie_id, language_id)`
+
+---
 
 ### MOVIE_FORMAT
-| Column      | Type   | Notes                                |
-|-------------|--------|--------------------------------------|
-| id          | uuid   | PK                                   |
-| movie_id    | uuid   | FK → MOVIE.id                        |
-| format_id   | uuid   | FK → FORMAT.id                       |
-unique(movie_id, format_id) — a movie can only have one entry per format
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| movie_id | uuid | FK -> MOVIE.id |
+| format_id | uuid | FK -> FORMAT.id |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> separate tables for languages and formats allow us to easily query which movies are available in a given language or format, and also allows a movie to have different languages and formats without having to create a new entry.
+Unique: `(movie_id, format_id)`
+
 ---
 
 ### CAST_MEMBER
-| Column         | Type   | Notes                                |
-|----------------|--------|--------------------------------------|
-| id             | uuid   | PK                                   |
-| movie_id       | uuid   | FK → MOVIE.id                        |
-| name           | string |                                      |
-| role           | string | e.g. `actor`, `director`, `producer` |
-| character_name | string | nullable — not applicable for crew   |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| movie_id | uuid | FK -> MOVIE.id |
+| name | string | |
+| role | string | e.g. `actor`, `director`, `producer` |
+| character_name | string | nullable |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
+
+## Screens, Layouts, and Seats
+
+### SEAT_LAYOUT
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| screen_id | uuid | FK -> SCREEN.id |
+| version_number | integer | monotonically increasing per screen |
+| name | string | e.g. `Default Layout`, `Renovation 2026` |
+| status | enum/string | `draft`, `published`, `archived` |
+| total_rows | integer | snapshot for this layout version |
+| total_columns | integer | snapshot for this layout version |
+| total_seats | integer | active bookable seats in this version |
+| screen_label | string | optional UI copy like `All eyes this way` |
+| legend_json | jsonb | optional UI metadata only, not source of truth |
+| published_at | datetime | nullable |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+Unique: `(screen_id, version_number)`
+
+Recommended rule:
+
+- only one `published` layout per screen at a time
+- a `SHOW` can reference only a `published` layout
+
+`legend_json` can store non-transactional display hints, but seat geometry must live in relational rows below.
+
+---
+
+### SEAT_SECTION
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| seat_layout_id | uuid | FK -> SEAT_LAYOUT.id |
+| code | string | stable internal identifier like `premium`, `executive`, `recliner` |
+| name | string | UI label |
+| seat_type | enum/string | optional coarse class |
+| color_hex | string | for legend rendering |
+| rank | integer | display order in UI and pricing list |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+Unique: `(seat_layout_id, code)`
+
+This is the pricing and legend anchor for the seat picker.
+
+---
+
+### SEAT
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| seat_layout_id | uuid | FK -> SEAT_LAYOUT.id |
+| seat_section_id | uuid | FK -> SEAT_SECTION.id |
+| row_label | string | e.g. `A`, `B`, `AA` |
+| seat_number | integer | e.g. `12` |
+| label | string | stored snapshot like `B12` |
+| grid_row | integer | row coordinate for UI |
+| grid_column | integer | column coordinate for UI |
+| x_span | integer | default 1, useful for recliners/couple seats |
+| y_span | integer | default 1 |
+| seat_kind | enum/string | `standard`, `recliner`, `wheelchair`, `companion`, `couple` |
+| is_accessible | boolean | default false |
+| is_active | boolean | default true |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+Unique:
+
+- `(seat_layout_id, label)`
+- `(seat_layout_id, grid_row, grid_column)`
+
+Notes:
+
+- gaps and aisles are represented by missing coordinates, not fake seats
+- if you later need explicit non-seat cells, add `LAYOUT_CELL` instead of overloading `SEAT`
+
+---
+
+## Shows, Pricing, and Live Availability
 
 ### SHOW
-| Column            | Type     | Notes                                                                                                          |
-|-------------------|----------|----------------------------------------------------------------------------------------------------------------|
-| id                | uuid     | PK                                                                                                             |
-| screen_id         | uuid     | FK → SCREEN.id                                                                                                 |
-| movie_id          | uuid     | FK → MOVIE.id                                                                                                  |
-| movie_language_id | uuid     | FK → MOVIE_LANGUAGE.id                                                                                         |
-| movie_format_id   | uuid     | FK → MOVIE_FORMAT.id                                                                                           |
-| start_time        | datetime |                                                                                                                |
-| end_time          | datetime | derived: `start_time + MOVIE.running_time`                                                                     |
-| total_capacity    | int      | -- set once when show is created (SELECT COUNT(*) FROM seat WHERE screen_id = :screen_id AND is_active = true) |
-| status            | enum     | `scheduled`, `cancelled`, `completed`                                                                          |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| screen_id | uuid | FK -> SCREEN.id |
+| seat_layout_id | uuid | FK -> SEAT_LAYOUT.id |
+| movie_id | uuid | FK -> MOVIE.id |
+| movie_language_id | uuid | FK -> MOVIE_LANGUAGE.id |
+| movie_format_id | uuid | FK -> MOVIE_FORMAT.id |
+| start_time | datetime | |
+| end_time | datetime | derived from running time |
+| total_capacity | integer | snapshot from active seats in referenced layout |
+| status | enum/string | `scheduled`, `cancelled`, `completed` |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> **Availability Calculation (Lazy Init):** We calculate available seats on the fly by taking `total_capacity` and subtracting the count of `SHOW_SEAT` rows that have a status of `locked` or `booked`. If a seat does not have a row in `SHOW_SEAT`, it is implicitly available.
-> **Format Validation:** when creating a show, validate that the selected movie's language and format are supported by the screen's capabilities. This ensures we don't schedule a 3D show in a screen that only supports 2D, for example.
-> **Overlap Prevention:** No two rows in SHOW can overlap for the same `screen_id`.
+Rules:
 
----
+- the referenced `seat_layout_id` must belong to the same `screen_id`
+- `seat_layout_id` is immutable after show creation
+- validate the selected movie format against `SCREEN_CAPABILITY`
+- prevent overlapping shows on the same screen
 
-### SHOW_PRICE
-| Column     | Type    | Notes                                   |
-|------------|---------|-----------------------------------------|
-| id         | uuid    | PK                                      |
-| show_id    | uuid    | FK → SHOW.id                            |
-| seat_type  | enum    | `silver`, `gold`, `premium`, `recliner` |
-| base_price | decimal | set by admin when scheduling the show   |
-UNIQUE (show_id, seat_type)
-
-> This is the source of truth for pricing. `TICKET.price` starts from here and adjusts for discounts/coupons.
-> A show must have a price row for every seat type present in the screen.
+This is the key change that makes historical seat maps safe.
 
 ---
 
-### SHOW_SEAT
-| Column            | Type     | Notes                            |
-|-------------------|----------|----------------------------------|
-| id                | uuid     | PK                               |
-| show_id           | uuid     | FK → SHOW.id                     |
-| seat_id           | uuid     | FK → SEAT.id                     |
-| locked_by_user_id | uuid     | FK → USER.id — nullable          |
-| status            | enum     | `locked`, `booked`               |
-| locked_until      | datetime | nullable — lock expiry timestamp |
+### SHOW_SECTION_PRICE
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| show_id | uuid | FK -> SHOW.id |
+| seat_section_id | uuid | FK -> SEAT_SECTION.id |
+| base_price | decimal | default price for this section in this show |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-UNIQUE (show_id, seat_id)
-> **TRANSIENT TABLE:** This table uses Lazy Initialization. Rows are **only** inserted when a user attempts to lock a seat.
-> `status` no longer needs an `available` option. If a seat is available, the row simply does not exist.
-> **Data Retention:** A background job runs daily to `DELETE` all rows in this table where the parent `SHOW.status` is `completed`. Historical seating data is preserved exclusively in the `TICKET` table.
+Unique: `(show_id, seat_section_id)`
+
+Use this instead of pricing only by seat type. It maps directly to what the UI shows in the legend.
+
+Optional future extension:
+
+- `SHOW_SEAT_PRICE_OVERRIDE(show_id, seat_id, price)`
 
 ---
+
+### SHOW_SEAT_STATE
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| show_id | uuid | FK -> SHOW.id |
+| seat_id | uuid | FK -> SEAT.id |
+| status | enum/string | `locked`, `booked`, `blocked` |
+| locked_by_user_id | uuid | FK -> USER.id, nullable |
+| booking_id | uuid | FK -> BOOKING.id, nullable |
+| lock_token | string | nullable, useful for idempotent checkout |
+| locked_until | datetime | nullable |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+Unique: `(show_id, seat_id)`
+
+Recommended behavior:
+
+- no row means seat is currently available
+- `locked` is temporary and expires
+- `booked` is written once payment succeeds
+- `blocked` is for admin/manual holds or broken seats in a particular show
+
+Do not calculate availability only from `total_capacity - locked/booked count` once `blocked` exists. The seat picker should query actual seat rows plus joined state.
+
+---
+
+## Bookings and Payments
 
 ### BOOKING
-| Column       | Type         | Notes                                              |
-|--------------|--------------|----------------------------------------------------|
-| id           | uuid         | PK                                                 |
-| user_id      | uuid         | FK → USER.id                                       |
-| show_id      | uuid         | FK → SHOW.id                                       |
-| coupon_id    | uuid         | FK → COUPONS.id nullable — if a coupon was applied |
-| total_amount | decimal      | sum of all ticket prices in this booking           |
-| status       | enum         | `pending`, `confirmed`, `cancelled`                |
-| booking_time | datetime.now |                                                    |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | FK -> USER.id |
+| show_id | uuid | FK -> SHOW.id |
+| coupon_id | uuid | FK -> COUPON.id, nullable |
+| total_amount | decimal | sum of active ticket prices |
+| status | enum/string | `pending`, `confirmed`, `cancelled`, `expired` |
+| booking_time | datetime | |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> `show_id` is a soft constraint — the application must ensure all tickets under this booking belong to the same show.
+Keep `show_id` as a hard rule, not a soft application-level rule. A booking should belong to exactly one show.
 
 ---
 
 ### TICKET
-| Column     | Type    | Notes                                                                                       |
-|------------|---------|---------------------------------------------------------------------------------------------|
-| id         | uuid    | PK                                                                                          |
-| booking_id | uuid    | FK → BOOKING.id                                                                             |
-| show_id    | uuid    | FK → SHOW.id — denormalized for easy access during ticket display and refunds               |
-| seat_id    | uuid    | FK → SEAT.id — permanent link to the specific seat booked                                   |
-| seat_label | string  | denormalized from SEAT.label for easy access during booking confirmation and ticket display |
-| price      | decimal | final price paid — base price after discounts/coupons                                       |
-| status     | enum    | `valid`, `cancelled`                                                                        |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| booking_id | uuid | FK -> BOOKING.id |
+| show_id | uuid | FK -> SHOW.id |
+| seat_id | uuid | FK -> SEAT.id |
+| seat_label | string | snapshot from SEAT.label |
+| section_name | string | snapshot from SEAT_SECTION.name |
+| price | decimal | final paid amount for this seat |
+| status | enum/string | `valid`, `cancelled` |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> **Historical Ledger:** Because `SHOW_SEAT` is wiped clean after a show ends, this table acts as the permanent historical record of who sat where.
-> `status` here handles **partial cancellations** — a user can cancel individual seats within a booking without cancelling the whole booking.
+Critical constraint:
+
+- unique `(show_id, seat_id)`
+
+That uniqueness belongs in the database, not only in application logic.
+
+---
+
+### PAYMENT
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| booking_id | uuid | FK -> BOOKING.id |
+| user_id | uuid | FK -> USER.id |
+| amount | decimal | expected booking amount |
+| status | enum/string | `pending`, `completed`, `failed`, `refunded` |
+| paid_at | datetime | nullable |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
 
 ### TRANSACTION
-| Column           | Type     | Notes                                         |
-|------------------|----------|-----------------------------------------------|
-| id               | uuid     | PK                                            |
-| ref_no           | uuid     | from payment gateway (Razorpay, Stripe, etc.) |
-| method           | string   | e.g. `UPI`, `card`, `net_banking`, `wallet`   |
-| payment_id       | uuid     | FK → PAYMENT.id                               |
-| amount           | decimal  | transaction amount                            |
-| transaction_time | datetime | when the transaction occurred                 | 
-| status           | enum     | `pending`, `completed`, `failed`              |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| payment_id | uuid | FK -> PAYMENT.id |
+| ref_no | string/uuid | gateway reference |
+| method | string | `UPI`, `card`, `wallet`, etc. |
+| amount | decimal | |
+| transaction_time | datetime | |
+| status | enum/string | `pending`, `completed`, `failed` |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> one payment can have multiple transactions (e.g. initial payment + refund), but each transaction belongs to only one payment. This allows us to track the full lifecycle of a payment, including any refunds that may occur later.
----
-
-### PAYMENT
-| Column     | Type     | Notes                                        |
-|------------|----------|----------------------------------------------|
-| id         | uuid     | PK                                           |
-| booking_id | uuid     | FK → BOOKING.id                              |
-| user_id    | uuid     | FK → USER.id                                 |
-| amount     | decimal  | should equal `BOOKING.total_amount`          |
-| status     | enum     | `pending`, `completed`, `failed`, `refunded` |
-| paid_at    | datetime | nullable — set on completion                 |
-
+One payment can have multiple transactions.
 
 ---
 
 ### PAYMENT_REFUND
-| Column      | Type     | Notes                            |
-|-------------|----------|----------------------------------|
-| id          | uuid     | PK                               |
-| payment_id  | uuid     | FK → PAYMENT.id                  |
-| ticket_id   | uuid     | FK → TICKET.id                   |
-| amount      | decimal  | refund amount                    |
-| refunded_at | datetime |                                  |
-| status      | enum     | `pending`, `completed`, `failed` |
-
-> refunds won't be processed after start of a show, so we won't have to worry about partial refunds for a single ticket across multiple shows. If a user cancels a ticket before the show starts, we create a PAYMENT_REFUND record linked to that ticket and the original payment. Once the refund is processed, we update the TICKET.status to `cancelled` and adjust the BOOKING.total_amount accordingly.
-> full refunds for a booking would simply be multiple PAYMENT_REFUND records for each ticket, all linked to the same original PAYMENT.
-> refunds are processed asynchronously — when a user requests a cancellation, we create the PAYMENT_REFUND record with status `pending` and trigger the refund through the payment gateway. Once we get a callback from the gateway, we update the status to `completed` or `failed` accordingly.
-> policy enforcement (e.g. no refunds within 1 hour of showtime) should be handled at the API layer before creating the PAYMENT_REFUND record.
-> refund policy example:
-
-> no refunds after show starts:
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| payment_id | uuid | FK -> PAYMENT.id |
+| ticket_id | uuid | FK -> TICKET.id |
+| amount | decimal | |
+| refunded_at | datetime | nullable |
+| status | enum/string | `pending`, `completed`, `failed` |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
+
+## Reviews and Coupons
 
 ### REVIEW
-| Column      | Type    | Notes          |
-|-------------|---------|----------------|
-| id          | uuid    | PK             |
-| movie_id    | uuid    | FK → MOVIE.id  |
-| user_id     | uuid    | FK → USER.id   |
-| description | text    |                |
-| rating      | decimal | `1.0` to `5.0` |
-| reviewed_on | date    |                |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| movie_id | uuid | FK -> MOVIE.id |
+| user_id | uuid | FK -> USER.id |
+| description | text | |
+| rating | decimal | `1.0` to `5.0` |
+| reviewed_on | date | |
+| created_at | datetime | |
+| updated_at | datetime | |
 
->unique constraint on `(movie_id, user_id)` so a user can only review a movie once.
-> check for if user had purchased a ticket for movie they are reviewing to be enforced at api layer
-
----
-
-### COUPONS
-| Column                 | Type     | Notes                                                     |
-|------------------------|----------|-----------------------------------------------------------|
-| id                     | uuid     | PK                                                        |
-| code                   | string   | unique coupon code                                        |
-| description            | text     |                                                           |
-| type                   | enum     | `amount`, `percentage`                                    |
-| discount_amount        | decimal  | fixed amount discount                                     |
-| discount_percentage    | decimal  | percentage discount (0-100)                               |
-| minimum_booking_amount | decimal  | minimum total_amount required to apply this coupon        |
-| max_uses_per_user      | int      | limit on how many times a single user can use this coupon |
-| max_total_uses         | int      | limit on total redemptions across all users               |
-| valid_from             | datetime |                                                           |
-| valid_until            | datetime |                                                           |
+Unique: `(movie_id, user_id)`
 
 ---
+
+### COUPON
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| code | string | unique |
+| description | text | |
+| coupon_type | enum/string | `amount`, `percentage` |
+| discount_amount | decimal | nullable |
+| discount_percentage | decimal | nullable |
+| minimum_booking_amount | decimal | nullable |
+| max_uses_per_user | integer | nullable |
+| max_total_uses | integer | nullable |
+| valid_from | datetime | |
+| valid_until | datetime | |
+| created_at | datetime | |
+| updated_at | datetime | |
 
 ---
 
 ### USER_COUPON_USAGE
-| Column      | Type     | Notes           |
-|-------------|----------|-----------------|
-| id          | uuid     | PK              |
-| coupon_id   | uuid     | FK → COUPONS.id |
-| user_id     | uuid     | FK → USER.id    |
-| booking_id  | uuid     | FK → BOOKING.id |
-| used_at     | datetime |                 |
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| coupon_id | uuid | FK -> COUPON.id |
+| user_id | uuid | FK -> USER.id |
+| booking_id | uuid | FK -> BOOKING.id |
+| used_at | datetime | |
+| created_at | datetime | |
+| updated_at | datetime | |
 
-> we need to count the number of times a user has used a coupon to enforce `max_uses_per_user`, and also count total redemptions to enforce `max_total_uses`. This table allows us to track each redemption event.
-> when a user applies a coupon during booking, we check the COUPONS table for validity and then insert a record into USER_COUPON_USAGE if the coupon is successfully applied. This way we can easily query how many times a user has used a coupon and how many total redemptions have occurred.
+---
 
+## Recommended Indexes
 
-## Key Design Decisions
+- `SHOW(screen_id, start_time)`
+- `SHOW(screen_id, status, start_time)`
+- `SHOW_SEAT_STATE(show_id, status)`
+- `SHOW_SEAT_STATE(show_id, seat_id)`
+- `SEAT(seat_layout_id, seat_section_id)`
+- `SEAT(seat_layout_id, row_label, seat_number)`
+- `TICKET(show_id, seat_id)` unique
+- `BOOKING(user_id, booking_time)`
+- `PAYMENT(booking_id)`
+- `REVIEW(movie_id)`
 
-**Pricing flow** — `SHOW_PRICE` stores the base price per seat type per show. When a ticket is created, `TICKET.price` is set to `base_price` minus any discount. `BOOKING.total_amount` is the sum of all ticket prices.
+---
 
-**Seat locking** — `SHOW_SEAT.status = locked` with a `locked_until` timestamp handles the race condition when multiple users try to book the same seat simultaneously. The lock must be acquired before checkout begins and released if payment fails or the timer expires.
+## Migration Guidance From Current State
 
-**Booking vs Ticket status** — `BOOKING.status` tracks the overall purchase state (`pending → confirmed → cancelled`). `TICKET.status` tracks individual seat state (`valid / cancelled`), enabling partial cancellations without voiding the whole booking.
+### No new migration needed for these
 
->Indexes on frequently queried columns (e.g. `SHOW.start_time`, `SHOW(screen_id, start_time)`, `SHOW_SEAT(show_id, status)`, `BOOKING(user_id)`, `PAYMENT(booking_id)`, `REVIEW.movie_id`) will be crucial for performance as the dataset grows.
+- `movies`
+- `movie_languages`
+- `movie_formats`
+- `screen_capabilities`
+- `screens`
+
+Those are aligned enough with this revised schema direction.
+
+### New migrations are needed for the seat-picker design
+
+Your current seat-related migrations are placeholders, so this is where the real work starts:
+
+1. build `seat_layouts` as a versioned table tied to `screens`
+2. build `seat_sections`
+3. build `seats` tied to `seat_layouts` and `seat_sections`
+4. when you introduce shows, include `seat_layout_id` on `shows`
+5. replace old `show_price` thinking with `show_section_prices`
+6. enforce `unique(show_id, seat_id)` on both live seat state and tickets
+
+If you have not run the empty seat migrations yet, rewrite them directly. If they were already run anywhere important, create follow-up migrations instead of editing history.

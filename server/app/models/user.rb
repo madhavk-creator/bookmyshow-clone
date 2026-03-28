@@ -8,8 +8,11 @@ class User < ApplicationRecord
 
   has_many :theatres,  foreign_key: :vendor_id,  dependent: :restrict_with_error
   has_many :bookings,                             dependent: :restrict_with_error
+  has_many :payments,                             dependent: :restrict_with_error
   has_many :tickets,   through: :bookings
   has_many :reviews,                              dependent: :destroy
+  has_many :user_coupon_usages,                  dependent: :restrict_with_error
+  has_many :locked_show_seat_states, foreign_key: :locked_by_user_id, class_name: "ShowSeatState", dependent: :nullify
 
 
   validates :name,  presence: true, length: { maximum: 100 }
@@ -20,7 +23,7 @@ class User < ApplicationRecord
   def watched?(movie)
     tickets
       .where(status: :valid)
-      .joins(show_seat: { show: {} })
+      .joins(:show)
       .where(shows: { movie_id: movie.id })
       .exists?
   end
