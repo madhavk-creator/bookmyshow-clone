@@ -85,3 +85,22 @@
 #   POST   /api/v1/movies                  admin only
 #   PATCH  /api/v1/movies/:id              admin only
 #   DELETE /api/v1/movies/:id              admin only
+
+#  Base: /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts
+#
+#  GET    /                          index   — all versions for this screen
+#  GET    /:id                       show    — layout + sections + seats (grid data)
+#  POST   /                          create  — new draft
+#  PATCH  /:id                       update  — metadata (draft only)
+#  POST   /:id/publish               publish — draft → published
+#  POST   /:id/archive               archive — published → archived
+#  PUT    /:id/sections              sync    — replace all sections (draft only)
+#  PUT    /:id/seats                 sync    — replace all seats   (draft only)
+#
+#  Section payload:
+#    { "sections": [{ "code": "premium", "name": "Premium", "color_hex": "#FFD700", "rank": 0 }] }
+#
+#  Seat payload:
+#    { "seats": [{ "row_label": "A", "seat_number": 1, "grid_row": 0, "grid_column": 0,
+#                  "seat_section_id": "uuid", "seat_kind": "standard",
+#                  "is_accessible": false, "is_active": true }] }

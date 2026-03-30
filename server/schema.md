@@ -262,6 +262,10 @@ Recommended rule:
 - only one `published` layout per screen at a time
 - a `SHOW` can reference only a `published` layout
 
+Database guard:
+
+- add a partial unique index on `seat_layouts(screen_id)` where `status = 'published'`
+
 `legend_json` can store non-transactional display hints, but seat geometry must live in relational rows below.
 
 ---
@@ -273,7 +277,6 @@ Recommended rule:
 | seat_layout_id | uuid | FK -> SEAT_LAYOUT.id |
 | code | string | stable internal identifier like `premium`, `executive`, `recliner` |
 | name | string | UI label |
-| seat_type | enum/string | optional coarse class |
 | color_hex | string | for legend rendering |
 | rank | integer | display order in UI and pricing list |
 | created_at | datetime | |
@@ -282,6 +285,8 @@ Recommended rule:
 Unique: `(seat_layout_id, code)`
 
 This is the pricing and legend anchor for the seat picker.
+
+Do not duplicate pricing semantics in another field unless you need a distinct operational concept. If `code` already represents the commercial class, keep that as the source of truth and avoid a redundant `seat_type`.
 
 ---
 
@@ -340,6 +345,8 @@ Rules:
 - `seat_layout_id` is immutable after show creation
 - validate the selected movie format against `SCREEN_CAPABILITY`
 - prevent overlapping shows on the same screen
+
+This same-screen check is not guaranteed by foreign keys alone. It must be enforced explicitly in show creation/update validation.
 
 This is the key change that makes historical seat maps safe.
 
@@ -408,6 +415,12 @@ Do not calculate availability only from `total_capacity - locked/booked count` o
 | updated_at | datetime | |
 
 Keep `show_id` as a hard rule, not a soft application-level rule. A booking should belong to exactly one show.
+
+Lifecycle note:
+
+- `pending -> confirmed` after successful payment and ticket creation
+- `pending -> expired` when the seat lock window ends before payment completion
+- the background job that expires a booking must also release or delete the corresponding `SHOW_SEAT_STATE.locked` rows in the same transaction, otherwise you can leave seats locked under expired bookings
 
 ---
 

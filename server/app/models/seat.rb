@@ -15,7 +15,8 @@ class Seat < ApplicationRecord
 
   validates :row_label, :seat_number, :label, :grid_row, :grid_column, :seat_kind, presence: true
   validates :label, uniqueness: { scope: :seat_layout_id, case_sensitive: false }
-  validates :seat_number, :grid_row, :grid_column, numericality: { only_integer: true, greater_than: 0 }
+  validates :seat_number, numericality: { only_integer: true, greater_than: 0 }
+  validates :grid_row, :grid_column, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :x_span, :y_span, numericality: { only_integer: true, greater_than: 0 }
   validates :grid_column, uniqueness: { scope: [ :seat_layout_id, :grid_row ] }
   validate :section_belongs_to_layout

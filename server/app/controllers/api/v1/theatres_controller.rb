@@ -10,7 +10,7 @@ module Api
 
         conditions ={}
         conditions[:city_id] = params[:city_id] if params[:city_id].present?
-        conditions[:vendor_id] = params[:vendor_id] if params[:vendor_id].present
+        conditions[:vendor_id] = params[:vendor_id] if params[:vendor_id].present?
 
         theatres = policy_scope(Theatre)
                      .includes(:city, :vendor)

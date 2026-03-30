@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Phone, ArrowRight, Loader } from 'lucide-react'
+import { setCredentials } from '../store/authSlice'
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -10,6 +12,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const dispatch = useDispatch()
 
   const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }))
 
@@ -34,8 +37,7 @@ export default function Register() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to register')
       
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      dispatch(setCredentials({ token: data.token, user: data.user }))
       navigate('/')
     } catch (err) {
       setError(err.message)

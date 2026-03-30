@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Camera, ArrowRight, Loader } from 'lucide-react'
+import { setCredentials } from '../store/authSlice'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -9,6 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const dispatch = useDispatch()
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -25,8 +28,7 @@ export default function Login() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to login')
       
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      dispatch(setCredentials({ token: data.token, user: data.user }))
       navigate('/')
     } catch (err) {
       setError(err.message)

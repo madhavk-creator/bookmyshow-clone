@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_28_074080) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_30_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -194,6 +194,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_28_074080) do
     t.index ["screen_id", "status"], name: "index_seat_layouts_on_screen_id_and_status"
     t.index ["screen_id", "version_number"], name: "index_seat_layouts_on_screen_id_and_version_number", unique: true
     t.index ["screen_id"], name: "index_seat_layouts_on_screen_id"
+    t.index ["screen_id"], name: "index_seat_layouts_one_published_per_screen", unique: true, where: "((status)::text = 'published'::text)"
   end
 
   create_table "seat_sections", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -206,7 +207,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_28_074080) do
     t.string "seat_type"
     t.datetime "updated_at", null: false
     t.index ["seat_layout_id", "code"], name: "index_seat_sections_on_seat_layout_id_and_code", unique: true
-    t.index ["seat_layout_id", "rank"], name: "index_seat_sections_on_seat_layout_id_and_rank"
+    t.index ["seat_layout_id", "rank"], name: "index_seat_sections_on_seat_layout_id_and_rank", unique: true
     t.index ["seat_layout_id"], name: "index_seat_sections_on_seat_layout_id"
   end
 
