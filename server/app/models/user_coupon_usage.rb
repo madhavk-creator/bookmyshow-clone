@@ -3,11 +3,17 @@ class UserCouponUsage < ApplicationRecord
   belongs_to :user
   belongs_to :booking
 
+  before_validation :assign_used_at, on: :create
+
   validates :used_at, presence: true
   validate :booking_matches_user
   validate :booking_matches_coupon
 
   private
+
+  def assign_used_at
+    self.used_at ||= Time.current
+  end
 
   def booking_matches_user
     return if booking.blank? || user.blank?

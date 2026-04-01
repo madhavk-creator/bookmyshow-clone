@@ -4,7 +4,7 @@ class CreateUserCouponUsages < ActiveRecord::Migration[8.1]
       t.references :coupon, type: :uuid, null: false, foreign_key: true
       t.references :user, type: :uuid, null: false, foreign_key: true
       t.references :booking, type: :uuid, null: false, foreign_key: true, index: false
-      t.datetime :used_at, null: false
+      t.datetime :used_at, null: false, default: -> { "CURRENT_TIMESTAMP" }
       t.timestamps
     end
 

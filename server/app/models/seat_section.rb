@@ -9,6 +9,7 @@ class SeatSection < ApplicationRecord
   validates :color_hex,
             format: { with: /\A#(?:\h{3}|\h{6})\z/, message: "must be a valid hex color" },
             allow_blank: true
+  validates :rank, uniqueness: { scope: :seat_layout_id }
 
   before_validation :normalize_code
 

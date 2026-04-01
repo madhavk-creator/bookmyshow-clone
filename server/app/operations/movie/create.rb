@@ -1,4 +1,4 @@
-module Movie
+class Movie
   class Create < Trailblazer::Operation
     step :build_movie
     step :persist_movie

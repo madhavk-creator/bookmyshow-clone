@@ -16,12 +16,15 @@ class CreateSeatLayouts < ActiveRecord::Migration[8.1]
 
     add_index :seat_layouts, [ :screen_id, :version_number ], unique: true
     add_index :seat_layouts, [ :screen_id, :status ]
+    add_index :seat_layouts, :screen_id,
+              unique: true,
+              where: "status = 'published'",
+              name: "index_seat_layouts_one_published_per_screen"
 
     create_table :seat_sections, id: :uuid, default: "gen_random_uuid()" do |t|
       t.references :seat_layout, type: :uuid, null: false, foreign_key: true
       t.string :code, null: false
       t.string :name, null: false
-      t.string :seat_type
       t.string :color_hex
       t.integer :rank, null: false, default: 0
       t.timestamps
