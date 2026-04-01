@@ -15,6 +15,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout not found'] }
         return false
       end
+      true
     end
 
     def assign_attributes(ctx, params:, model:, **)

@@ -12,6 +12,7 @@ class Screen
         ctx[:errors] = { base: ['Screen not found'] }
         return false
       end
+    true
     end
 
     def destroy(ctx, model:, **)

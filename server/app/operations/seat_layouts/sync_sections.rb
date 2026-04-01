@@ -18,6 +18,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout not found'] }
         return false
       end
+      true
     end
 
     def validate_sections_param(ctx, params:, **)
@@ -41,6 +42,7 @@ class SeatLayout
         ctx[:errors] = { sections: ['Section ranks must be unique'] }
         return false
       end
+      true
     end
 
     def replace_sections(ctx, params:, model:, **)
