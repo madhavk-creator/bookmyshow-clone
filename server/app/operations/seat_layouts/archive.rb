@@ -13,6 +13,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout not found'] }
         return false
       end
+      true
     end
 
     def check_no_upcoming_shows(ctx, model:, **)
@@ -24,6 +25,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Cannot archive a layout with upcoming scheduled shows'] }
         return false
       end
+      true
     end
 
     def archive(ctx, model:, **)

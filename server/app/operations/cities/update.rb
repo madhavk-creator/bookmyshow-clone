@@ -13,6 +13,7 @@ class City
         ctx[:errors] = { base: ['City not found'] }
         return false
       end
+    true
     end
 
     def update_attributes(ctx, params:, model:, **)

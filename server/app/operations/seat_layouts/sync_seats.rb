@@ -24,6 +24,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout not found'] }
         return false
       end
+      true
     end
 
     def validate_sections_exist(ctx, model:, **)
@@ -31,6 +32,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Add sections before adding seats'] }
         return false
       end
+      true
     end
 
     def validate_seat_sections_belong_to_layout(ctx, params:, model:, **)
@@ -43,6 +45,7 @@ class SeatLayout
         ctx[:errors] = { seats: ["Section IDs do not belong to this layout: #{invalid.join(', ')}"] }
         return false
       end
+      true
     end
 
     def replace_seats(ctx, params:, model:, **)

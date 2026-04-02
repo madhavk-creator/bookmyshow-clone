@@ -12,6 +12,7 @@ class Movie
         ctx[:errors] = { base: ['Movie not found'] }
         return false
       end
+    true
     end
 
     def destroy(ctx, model:, **)

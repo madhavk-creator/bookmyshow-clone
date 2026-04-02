@@ -20,6 +20,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout not found'] }
         return false
       end
+      true
     end
 
     def validate_has_sections(ctx, model:, **)
@@ -27,6 +28,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout must have at least one section before publishing'] }
         return false
       end
+      true
     end
 
     def validate_has_seats(ctx, model:, **)
@@ -34,6 +36,7 @@ class SeatLayout
         ctx[:errors] = { base: ['Layout must have at least one active seat before publishing'] }
         return false
       end
+      true
     end
 
     def publish(ctx, model:, **)

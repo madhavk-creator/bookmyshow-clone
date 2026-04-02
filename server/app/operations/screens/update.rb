@@ -34,7 +34,7 @@ class Screen
       invalid    = format_ids - valid_ids
 
       if invalid.any?
-        ctx[:errors] = { format_ids: ["Unknown format IDs: #{invalid.join(', ')}"] }
+        ctx[:errors] = { format_ids: ["Unknown formats IDs: #{invalid.join(', ')}"] }
         return false
       end
 
