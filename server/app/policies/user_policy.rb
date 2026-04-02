@@ -1,5 +1,5 @@
 class UserPolicy < ApplicationPolicy
-  # Any authenticated user can view their own profile.
+  # Any authenticated users can view their own profile.
   # Admins can view any profile.
   def show?
     own_record? || current_user.admin?

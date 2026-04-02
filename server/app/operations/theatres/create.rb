@@ -1,9 +1,9 @@
 # Handles cities resolution inline:
 #   - If city_id is provided, use it directly.
 #   - If cities name + state are provided, find-or-create the cities.
-# This lets vendors register a theatre in a new cities without a separate API call.
+# This lets vendors register a theatres in a new cities without a separate API call.
 
-class Theatre
+module Theatres
   class Create < Trailblazer::Operation
     step :resolve_city
     step :build_theatre

@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useSelector } from 'react-redux'
 import { Clapperboard, MapPin, Globe, MonitorPlay, Building2, Users } from 'lucide-react'
-import { selectCurrentToken } from '../../store/authSlice'
+import { api } from '../../utils/api'
 
 export default function AdminDashboard() {
-  const token = useSelector(selectCurrentToken)
   const [counts, setCounts] = useState({ movies: '—', cities: '—', languages: '—', formats: '—', theatres: '—' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchCounts() {
-      const headers = { Authorization: `Bearer ${token}` }
       try {
-        const [movies, cities, languages, formats, theatres] = await Promise.all([
-          fetch('/api/v1/movies').then(r => r.json()),
-          fetch('/api/v1/cities').then(r => r.json()),
-          fetch('/api/v1/languages').then(r => r.json()),
-          fetch('/api/v1/formats').then(r => r.json()),
-          fetch('/api/v1/theatres', { headers }).then(r => r.json()),
+        const [
+          { data: movies },
+          { data: cities },
+          { data: languages },
+          { data: formats },
+          { data: theatres },
+        ] = await Promise.all([
+          api.get('/api/v1/movies'),
+          api.get('/api/v1/cities'),
+          api.get('/api/v1/languages'),
+          api.get('/api/v1/formats'),
+          api.get('/api/v1/theatres'),
         ])
         setCounts({
           movies: Array.isArray(movies) ? movies.length : 0,
@@ -31,7 +34,7 @@ export default function AdminDashboard() {
       finally { setLoading(false) }
     }
     fetchCounts()
-  }, [token])
+  }, [])
 
   const stats = [
     { label: 'Movies',    value: counts.movies,    icon: Clapperboard, color: 'from-rose-500 to-pink-500 shadow-rose-500/20' },

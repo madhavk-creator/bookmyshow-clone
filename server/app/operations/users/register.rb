@@ -1,4 +1,4 @@
-class User
+module Users
   class Register < Trailblazer::Operation
     step :validate_params
     step :build_user

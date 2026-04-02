@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Phone, ArrowRight, Loader } from 'lucide-react'
 import { setCredentials } from '../store/authSlice'
+import { api, extractApiError } from '../utils/api'
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -28,19 +29,11 @@ export default function Register() {
     }
 
     try {
-      const res = await fetch('/api/v1/users/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registration: formData }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to register')
-      
+      const { data } = await api.post('/api/v1/users/register', { registration: formData })
       dispatch(setCredentials({ token: data.token, user: data.user }))
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      setError(extractApiError(err, 'Failed to register'))
     } finally {
       setLoading(false)
     }

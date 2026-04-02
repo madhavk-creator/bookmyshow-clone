@@ -6,11 +6,11 @@ module Api
       # GET /api/v1/cities
       # Public. Supports ?state= filter.
       def index
-        cities = policy_scope(City)
-                   .then { |q| params[:state].present? ? q.where(state: params[:state].titleize) : q }
-                   .order(:state, :name)
+        result = run(Cities::Index, current_user: current_user, params: { state: params[:state] }) do |operation_result|
+          return render json: serialize_many(operation_result[:records])
+        end
 
-        render json: serialize_many(cities)
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # GET /api/v1/cities/:id
@@ -27,13 +27,11 @@ module Api
       def create
         authorize City
 
-        result = City::Create.call(params: city_params.to_h)
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(Cities::Create, params: city_params.to_h) do |operation_result|
+          return render json: serialize(operation_result[:model]), status: :created
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/cities/:id
@@ -44,13 +42,11 @@ module Api
 
         authorize city
 
-        result = City::Update.call(params: city_params.to_h.merge(id: params[:id]))
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(Cities::Update, params: city_params.to_h.merge(id: params[:id])) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # DELETE /api/v1/cities/:id
@@ -61,13 +57,11 @@ module Api
 
         authorize city
 
-        result = City::Destroy.call(params: { id: params[:id] })
-
-        if result.success?
-          render json: { message: 'City deleted successfully' }
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(Cities::Destroy, params: { id: params[:id] }) do
+          return render json: { message: 'City deleted successfully' }
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       private

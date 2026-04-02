@@ -1,4 +1,4 @@
-class SeatLayout
+module SeatLayouts
   class Archive < Trailblazer::Operation
     step :find_layout
     step :check_no_upcoming_shows

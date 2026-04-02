@@ -1,25 +1,22 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSelector } from 'react-redux'
 import { Building2, MapPin, Loader } from 'lucide-react'
-import { selectCurrentToken } from '../../store/authSlice'
+import { api } from '../../utils/api'
 
 export default function AdminTheatres() {
-  const token = useSelector(selectCurrentToken)
   const [theatres, setTheatres] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchTheatres() {
       try {
-        const res = await fetch('/api/v1/theatres', { headers: { Authorization: `Bearer ${token}` } })
-        const data = await res.json()
+        const { data } = await api.get('/api/v1/theatres')
         setTheatres(Array.isArray(data) ? data : [])
       } catch (err) { console.error(err) }
       finally { setLoading(false) }
     }
     fetchTheatres()
-  }, [token])
+  }, [])
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">

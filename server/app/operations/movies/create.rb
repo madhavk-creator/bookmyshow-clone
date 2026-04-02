@@ -1,10 +1,10 @@
-class Movie
+module Movies
   class Create < Trailblazer::Operation
     step :build_movie
-    step :persist_movie
-    step :sync_languages
-    step :sync_formats
-    step :sync_cast
+    step :validate_languages
+    step :validate_formats
+    step :validate_cast_members
+    step :persist_changes
     fail :collect_errors
 
     private
@@ -21,11 +21,7 @@ class Movie
       )
     end
 
-    def persist_movie(ctx, model:, **)
-      model.save
-    end
-
-    def sync_languages(ctx, params:, model:, **)
+    def validate_languages(ctx, params:, **)
       entries = Array(params[:language_entries])
       return true if entries.empty?
 
@@ -45,20 +41,19 @@ class Movie
           ctx[:errors] = { language_entries: ["Invalid type '#{type}'. Must be one of: #{valid_types.join(', ')}"] }
           return false
         end
-      true
       end
 
-      entries.each do |entry|
-        model.movie_languages.create!(
+      ctx[:language_entries] = entries.map do |entry|
+        {
           language_id: entry[:language_id] || entry['language_id'],
           language_type: entry[:type] || entry['type']
-        )
+        }
       end
 
       true
     end
 
-    def sync_formats(ctx, params:, model:, **)
+    def validate_formats(ctx, params:, **)
       format_ids = Array(params[:format_ids]).uniq
       return true if format_ids.empty?
 
@@ -70,14 +65,12 @@ class Movie
         return false
       end
 
-      format_ids.each do |fid|
-        model.movie_formats.create!(format_id: fid)
-      end
+      ctx[:format_ids] = format_ids
 
       true
     end
 
-    def sync_cast(ctx, params:, model:, **)
+    def validate_cast_members(ctx, params:, **)
       members = Array(params[:cast_members])
       return true if members.empty?
 
@@ -89,18 +82,47 @@ class Movie
           ctx[:errors] = { cast_members: ["Invalid role '#{role}'. Must be one of: #{valid_roles.join(', ')}"] }
           return false
         end
-      true
       end
 
-      members.each do |member|
-        model.cast_members.create!(
-          name:           member[:name]           || member['name'],
-          role:           member[:role]           || member['role'],
+      ctx[:cast_members] = members.map do |member|
+        {
+          name: member[:name] || member['name'],
+          role: member[:role] || member['role'],
           character_name: member[:character_name] || member['character_name']
-        )
+        }
       end
 
       true
+    end
+
+    def persist_changes(ctx, model:, **)
+      Movie.transaction do
+        model.save!
+
+        Array(ctx[:language_entries]).each do |entry|
+          model.movie_languages.create!(entry)
+        end
+
+        Array(ctx[:format_ids]).each do |format_id|
+          model.movie_formats.create!(format_id: format_id)
+        end
+
+        Array(ctx[:cast_members]).each do |member|
+          model.cast_members.create!(member)
+        end
+      end
+
+      true
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+      ctx[:errors] = extract_errors(e, model)
+      false
+    end
+
+    def extract_errors(error, model)
+      record = error.respond_to?(:record) ? error.record : nil
+      return record.errors.to_hash(true) if record&.errors&.any?
+
+      model.errors.to_hash(true).presence || { base: [error.message] }
     end
 
     def collect_errors(ctx, model: nil, **)

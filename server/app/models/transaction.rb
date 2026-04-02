@@ -3,7 +3,7 @@ class Transaction < ApplicationRecord
 
   enum :status, { pending: "pending", completed: "completed", failed: "failed" }, prefix: true
 
-  validates :ref_no, :method, :transaction_time, :status, presence: true
   validates :ref_no, uniqueness: true
   validates :amount, numericality: { greater_than_or_equal_to: 0 }
+  validates :ref_no, :payment_method, :transaction_time, :status, presence: true
 end

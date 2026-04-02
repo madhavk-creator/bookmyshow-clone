@@ -3,7 +3,7 @@
 # Only allowed on draft layouts.
 #
 # Params: id, sections: [{ code:, name:, color_hex:, rank:, seat_type: }, ...]
-class SeatLayout
+module SeatLayouts
   class SyncSections < Trailblazer::Operation
     step :find_layout
     step :validate_sections_param
@@ -49,7 +49,7 @@ class SeatLayout
       sections = Array(params[:sections])
 
       model.class.transaction do
-        # Destroying sections cascades to seats — vendor must re-add seats after
+        # Destroying sections cascades to seats — vendors must re-add seats after
         # changing sections. This is intentional: section changes invalidate seat
         # section assignments.
         model.seat_sections.destroy_all

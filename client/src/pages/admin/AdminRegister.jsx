@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { useSelector } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Phone, ShieldCheck, ArrowRight, Loader, CheckCircle } from 'lucide-react'
-import { selectCurrentToken } from '../../store/authSlice'
+import { api, extractApiError } from '../../utils/api'
 
 export default function AdminRegister() {
-  const token = useSelector(selectCurrentToken)
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -26,17 +24,11 @@ export default function AdminRegister() {
     }
 
     try {
-      const res = await fetch('/api/v1/admin/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ registration: formData }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Registration failed')
+      const { data } = await api.post('/api/v1/admin/register', { registration: formData })
       setSuccess(`Admin "${data.user?.name || formData.name}" created successfully!`)
       setFormData({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
     } catch (err) {
-      setError(err.message)
+      setError(extractApiError(err, 'Registration failed'))
     } finally {
       setLoading(false)
     }

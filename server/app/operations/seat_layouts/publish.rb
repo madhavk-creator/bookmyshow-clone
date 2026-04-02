@@ -3,8 +3,8 @@
 #   - must have at least one section
 #   - must have at least one active seat
 #   - total_seats on the layout must match actual active seat count
-#   - partial unique index enforces one published layout per screen at DB level
-class SeatLayout
+#   - partial unique index enforces one published layout per screens at DB level
+module SeatLayouts
   class Publish < Trailblazer::Operation
     step :find_layout
     step :validate_has_sections

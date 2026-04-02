@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, ArrowRight, Loader } from 'lucide-react'
 import { setCredentials } from '../../store/authSlice'
+import { api, extractApiError } from '../../utils/api'
 
 export default function VendorLogin() {
   const [email, setEmail] = useState('')
@@ -19,19 +20,11 @@ export default function VendorLogin() {
     setError(null)
 
     try {
-      const res = await fetch('/api/v1/vendors/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Invalid credentials')
-
+      const { data } = await api.post('/api/v1/vendors/login', { email, password })
       dispatch(setCredentials({ token: data.token, user: data.user }))
       navigate('/vendor')
     } catch (err) {
-      setError(err.message)
+      setError(extractApiError(err, 'Invalid credentials'))
     } finally {
       setLoading(false)
     }

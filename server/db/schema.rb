@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_30_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_31_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -18,12 +18,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_30_090000) do
     t.datetime "booking_time", null: false
     t.uuid "coupon_id"
     t.datetime "created_at", null: false
+    t.string "lock_token"
     t.uuid "show_id", null: false
     t.string "status", default: "pending", null: false
     t.decimal "total_amount", precision: 10, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
     t.uuid "user_id", null: false
     t.index ["coupon_id"], name: "index_bookings_on_coupon_id"
+    t.index ["lock_token"], name: "index_bookings_on_lock_token"
     t.index ["show_id", "status"], name: "index_bookings_on_show_id_and_status"
     t.index ["show_id"], name: "index_bookings_on_show_id"
     t.index ["user_id", "booking_time"], name: "index_bookings_on_user_id_and_booking_time"
@@ -242,6 +244,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_30_090000) do
     t.string "status", null: false
     t.datetime "updated_at", null: false
     t.index ["booking_id"], name: "index_show_seat_states_on_booking_id"
+    t.index ["lock_token"], name: "index_show_seat_states_on_lock_token"
     t.index ["locked_by_user_id"], name: "index_show_seat_states_on_locked_by_user_id"
     t.index ["seat_id"], name: "index_show_seat_states_on_seat_id"
     t.index ["show_id", "seat_id"], name: "index_show_seat_states_on_show_id_and_seat_id", unique: true

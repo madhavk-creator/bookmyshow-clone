@@ -1,4 +1,4 @@
-class Screen
+module Screens
   class Destroy < Trailblazer::Operation
     step :find_screen
     step :destroy
@@ -18,12 +18,12 @@ class Screen
     def destroy(ctx, model:, **)
       model.destroy
     rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: ['Cannot delete a screen that has seats or shows'] }
+      ctx[:errors] = { base: ['Cannot delete a screens that has seats or shows'] }
       false
     end
 
     def collect_errors(ctx, model: nil, **)
-      ctx[:errors] ||= { base: ['Could not delete screen'] }
+      ctx[:errors] ||= { base: ['Could not delete screens'] }
     end
   end
 end

@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import ProtectedRoute from './components/ProtectedRoute'
 import PublicLayout from './layouts/PublicLayout'
 import VendorAuthLayout from './layouts/VendorAuthLayout'
 import VendorLayout from './layouts/VendorLayout'
@@ -13,6 +14,8 @@ import VendorDashboard from './pages/vendor/VendorDashboard'
 import VendorTheatres from './pages/vendor/VendorTheatres'
 import VendorScreens from './pages/vendor/VendorScreens'
 import VendorSettings from './pages/vendor/VendorSettings'
+import SeatLayoutManager from './pages/vendor/SeatLayoutManager'
+import SeatLayoutEditor from './pages/vendor/SeatLayoutEditor'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMovies from './pages/admin/AdminMovies'
@@ -39,11 +42,15 @@ function App() {
       </Route>
 
       {/* Vendor dashboard (sidebar) */}
-      <Route path="/vendor" element={<VendorLayout />}>
-        <Route index element={<VendorDashboard />} />
-        <Route path="theatres" element={<VendorTheatres />} />
-        <Route path="screens" element={<VendorScreens />} />
-        <Route path="settings" element={<VendorSettings />} />
+      <Route element={<ProtectedRoute allowedRoles={['vendor']} />}>
+        <Route path="/vendor" element={<VendorLayout />}>
+          <Route index element={<VendorDashboard />} />
+          <Route path="theatres" element={<VendorTheatres />} />
+          <Route path="screens" element={<VendorScreens />} />
+          <Route path="layouts/:theatreId/:screenId" element={<SeatLayoutManager />} />
+          <Route path="layouts/:theatreId/:screenId/:layoutId" element={<SeatLayoutEditor />} />
+          <Route path="settings" element={<VendorSettings />} />
+        </Route>
       </Route>
 
       {/* Admin auth (standalone) */}
@@ -52,14 +59,16 @@ function App() {
       </Route>
 
       {/* Admin dashboard (sidebar) */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="movies" element={<AdminMovies />} />
-        <Route path="cities" element={<AdminCities />} />
-        <Route path="languages" element={<AdminLanguages />} />
-        <Route path="formats" element={<AdminFormats />} />
-        <Route path="theatres" element={<AdminTheatres />} />
-        <Route path="register" element={<AdminRegisterPage />} />
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="movies" element={<AdminMovies />} />
+          <Route path="cities" element={<AdminCities />} />
+          <Route path="languages" element={<AdminLanguages />} />
+          <Route path="formats" element={<AdminFormats />} />
+          <Route path="theatres" element={<AdminTheatres />} />
+          <Route path="register" element={<AdminRegisterPage />} />
+        </Route>
       </Route>
     </Routes>
   )

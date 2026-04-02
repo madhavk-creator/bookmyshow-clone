@@ -21,6 +21,10 @@ class Show < ApplicationRecord
   validate :format_belongs_to_movie
   validate :screen_supports_movie_format
 
+  def release_expired_locks!
+    show_seat_states.expired_locks.delete_all
+  end
+
   private
 
   def end_time_after_start_time
@@ -34,27 +38,27 @@ class Show < ApplicationRecord
     return if screen.blank? || seat_layout.blank?
     return if seat_layout.screen_id == screen_id
 
-    errors.add(:seat_layout, "must belong to the selected screen")
+    errors.add(:seat_layout, "must belong to the selected screens")
   end
 
   def language_belongs_to_movie
     return if movie.blank? || movie_language.blank?
     return if movie_language.movie_id == movie_id
 
-    errors.add(:movie_language, "must belong to the selected movie")
+    errors.add(:movie_language, "must belong to the selected movies")
   end
 
   def format_belongs_to_movie
     return if movie.blank? || movie_format.blank?
     return if movie_format.movie_id == movie_id
 
-    errors.add(:movie_format, "must belong to the selected movie")
+    errors.add(:movie_format, "must belong to the selected movies")
   end
 
   def screen_supports_movie_format
     return if screen.blank? || movie_format.blank?
     return if screen.screen_capabilities.exists?(format_id: movie_format.format_id)
 
-    errors.add(:movie_format, "is not supported by the selected screen")
+    errors.add(:movie_format, "is not supported by the selected screens")
   end
 end

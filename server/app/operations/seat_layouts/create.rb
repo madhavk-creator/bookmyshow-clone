@@ -1,4 +1,4 @@
-class SeatLayout
+module SeatLayouts
   class Create < Trailblazer::Operation
     step :find_screen
     step :build_layout

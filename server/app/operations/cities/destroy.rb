@@ -1,4 +1,4 @@
-class City
+module Cities
   class Destroy < Trailblazer::Operation
     step :find_city
     step :destroy
@@ -18,12 +18,12 @@ class City
     def destroy(ctx, model:, **)
       model.destroy
     rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: ['Cannot delete a city that has theatres'] }
+      ctx[:errors] = { base: ['Cannot delete a cities that has theatres'] }
       false
     end
 
     def collect_errors(ctx, model:, **)
-      ctx[:errors] ||= { base: ['Could not delete city'] }
+      ctx[:errors] ||= { base: ['Could not delete cities'] }
     end
   end
 end

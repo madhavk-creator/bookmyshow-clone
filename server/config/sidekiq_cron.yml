@@ -1,0 +1,5 @@
+expire_seat_locks:
+  cron: "* * * * *"
+  class: "ExpireSeatLocksWorker"
+  queue: default
+  description: "Release expired seat locks and expire pending bookings every minute"

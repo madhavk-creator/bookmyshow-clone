@@ -1,4 +1,4 @@
-class Language
+module Languages
   class Create < Trailblazer::Operation
     step :build
     step :persist

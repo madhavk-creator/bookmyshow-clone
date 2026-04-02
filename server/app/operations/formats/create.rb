@@ -1,4 +1,4 @@
-class Format
+module Formats
   class Create < Trailblazer::Operation
     step :build
     step :persist

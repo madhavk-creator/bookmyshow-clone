@@ -1,0 +1,3 @@
+module Bookings
+
+end

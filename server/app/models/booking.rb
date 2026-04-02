@@ -5,7 +5,6 @@ class Booking < ApplicationRecord
 
   has_many :tickets, dependent: :destroy
   has_many :payments, dependent: :destroy
-  has_many :show_seat_states, dependent: :nullify
   has_many :user_coupon_usages, dependent: :destroy
 
   enum :status, { pending: "pending", confirmed: "confirmed", cancelled: "cancelled", expired: "expired" }, prefix: true
@@ -14,6 +13,7 @@ class Booking < ApplicationRecord
 
   validates :booking_time, :status, presence: true
   validates :total_amount, numericality: { greater_than_or_equal_to: 0 }
+  validates :lock_token, presence: true, uniqueness: true
 
   private
 

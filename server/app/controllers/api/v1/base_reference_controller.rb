@@ -6,9 +6,11 @@ module Api
       # GET /api/v1/languages  or  /api/v1/formats
       # Public. Optional ?q= search on name.
       def index
-        records = policy_scope(model_class).order(:name)
-        records = records.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
-        render json: records.map { |r| serialize(r) }
+        result = run(index_operation, current_user: current_user, params: { q: params[:q] }) do |operation_result|
+          return render json: operation_result[:records].map { |record| serialize(record) }
+        end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # GET /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -25,13 +27,11 @@ module Api
       def create
         authorize model_class
 
-        result = create_operation.call(params: permitted_params.to_h)
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(create_operation, params: permitted_params.to_h) do |operation_result|
+          return render json: serialize(operation_result[:model]), status: :created
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -42,16 +42,15 @@ module Api
 
         authorize record
 
-        result = update_operation.call(
+        result = run(
+          update_operation,
           params: permitted_params.to_h, 
           model: record 
-        )
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # DELETE /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -62,18 +61,17 @@ module Api
 
         authorize record
 
-        result = destroy_operation.call(model: record)
-
-        if result.success?
-          render json: { message: "#{model_class.name} deleted successfully" }
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(destroy_operation, model: record) do
+          return render json: { message: "#{model_class.name} deleted successfully" }
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       private
 
       def model_class       = raise NotImplementedError
+      def index_operation   = raise NotImplementedError
       def create_operation  = raise NotImplementedError
       def update_operation  = raise NotImplementedError
       def destroy_operation = raise NotImplementedError

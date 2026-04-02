@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Clock, MapPin, PlayCircle, Loader, Film } from 'lucide-react'
+import { api } from '../utils/api'
 
 export default function Home() {
   const [movies, setMovies] = useState([])
@@ -11,15 +12,9 @@ export default function Home() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [movieRes, cityRes] = await Promise.all([
-          fetch('/api/v1/movies').then(async res => {
-            if (!res.ok) throw new Error("Failed to fetch movies");
-            return res.json();
-          }),
-          fetch('/api/v1/cities').then(async res => {
-            if (!res.ok) throw new Error("Failed to fetch cities");
-            return res.json();
-          })
+        const [{ data: movieRes }, { data: cityRes }] = await Promise.all([
+          api.get('/api/v1/movies'),
+          api.get('/api/v1/cities'),
         ])
         const moviesArray = Array.isArray(movieRes) ? movieRes : []
         const citiesArray = Array.isArray(cityRes) ? cityRes : []

@@ -23,8 +23,16 @@ module Authenticatable
     @current_user = user
   end
 
+  # Attempts to authenticate if an Authorization header is present.
+  # Used for endpoints that are public but give expanded access/data to logged in users.
+  def authenticate_optional!
+    return unless request.headers['Authorization'].present?
+
+    authenticate!
+  end
+
   # Authenticate and enforce a specific role.
-  # Renders 403 if the user is authenticated but has the wrong role.
+  # Renders 403 if the users is authenticated but has the wrong role.
   def require_role!(*roles)
     authenticate!
     return unless current_user

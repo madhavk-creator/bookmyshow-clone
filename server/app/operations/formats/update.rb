@@ -1,4 +1,4 @@
-class Format
+module Formats
   class Update < Trailblazer::Operation
     step :update_attributes
     step :persist

@@ -1,4 +1,4 @@
-class Language
+module Languages
   class Update < Trailblazer::Operation
     step :assign
     step :persist

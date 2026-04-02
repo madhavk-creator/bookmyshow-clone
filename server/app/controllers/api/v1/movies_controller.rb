@@ -4,17 +4,22 @@ module Api
       before_action :authenticate!, only: %i[create update destroy]
 
       # GET /api/v1/movies
-      # Public. Supports genre, language, format, city_id filters.
+      # Public. Supports genre, languages, formats, city_id filters.
       def index
-        movies = policy_scope(Movie)
-                   .includes(:languages, :formats)
+        result = run(
+          Movies::Index,
+          current_user: current_user,
+          params: {
+            genre: params[:genre],
+            language: params[:language],
+            format: params[:format],
+            city_id: params[:city_id]
+          }
+        ) do |operation_result|
+          return render json: operation_result[:records].map { |movie| serialize(movie) }
+        end
 
-        movies = filter_by_genre(movies)
-        movies = filter_by_language(movies)
-        movies = filter_by_format(movies)
-        movies = filter_by_city(movies)
-
-        render json: movies.order(:title).map { |m| serialize(m) }
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # GET /api/v1/movies/:id
@@ -29,15 +34,13 @@ module Api
       # POST /api/v1/movies
       # Admin only.
       def create
-        authorize Movie
+        authorize Movies
 
-        result = Movie::Create.call(params: movie_params.to_h.deep_symbolize_keys)
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(Movies::Create, params: movie_params.to_h.deep_symbolize_keys) do |operation_result|
+          return render json: serialize(operation_result[:model]), status: :created
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/movies/:id
@@ -48,15 +51,15 @@ module Api
 
         authorize movie
 
-        result = Movie::Update.call(
-          params: movie_params.to_h.deep_symbolize_keys.merge(id: params[:id])
-        )
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(
+          Movies::Update,
+          params: movie_params.to_h.deep_symbolize_keys,
+          model: movie
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # DELETE /api/v1/movies/:id
@@ -67,41 +70,14 @@ module Api
 
         authorize movie
 
-        result = Movie::Destroy.call(params: { id: params[:id] })
-
-        if result.success?
-          render json: { message: 'Movie deleted successfully' }
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(Movies::Destroy, params: { id: params[:id], model: movie }) do
+          return render json: { message: 'Movie deleted successfully' }
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       private
-
-      def filter_by_genre(scope)
-        return scope unless params[:genre].present?
-        scope.where('genre ILIKE ?', params[:genre])
-      end
-
-      def filter_by_language(scope)
-        return scope unless params[:language].present?
-        scope.joins(:languages).where(languages: { code: params[:language].downcase })
-      end
-
-      def filter_by_format(scope)
-        return scope unless params[:format].present?
-        scope.joins(:formats).where(formats: { code: params[:format].downcase })
-      end
-
-      # Movies with at least one scheduled (non-cancelled) show
-      # in a screen belonging to a theatre in the given city.
-      def filter_by_city(scope)
-        return scope unless params[:city_id].present?
-        scope.joins(shows: { screen: :theatre })
-             .where(theatres: { city_id: params[:city_id] })
-             .where(shows: { status: 'scheduled' })
-             .distinct
-      end
 
       def movie_params
         params.require(:movie).permit(
@@ -109,7 +85,7 @@ module Api
           :director, :running_time, :release_date,
           format_ids: [],
           language_entries: [:language_id, :type],
-          cast_members: [:name, :role, :character_name]
+          cast_members: [:id, :name, :role, :character_name]
         )
       end
 

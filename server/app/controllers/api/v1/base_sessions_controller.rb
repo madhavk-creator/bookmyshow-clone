@@ -1,5 +1,5 @@
 # Login flow:
-#   1. Find user by email
+#   1. Find users by email
 #   2. Verify password via Devise's valid_password?
 #   3. Check is_active and role
 #   4. Mint JWT via JsonWebToken.encode
@@ -13,7 +13,7 @@ module Api
     class BaseSessionsController < ApplicationController
       skip_before_action :authenticate!, raise: false
 
-      # POST /api/v1/(users|vendors|admin)/login
+      # POST /api/v1/(users|vendors|admins)/login
       def create
         user = User.find_by(email: email_param)
 

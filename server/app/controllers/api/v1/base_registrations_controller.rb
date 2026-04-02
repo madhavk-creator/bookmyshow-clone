@@ -3,16 +3,14 @@ module Api
     class BaseRegistrationsController < ApplicationController
       skip_before_action :authenticate!, raise: false
 
-      # POST /api/v1/(users|vendors|admin)/register
+      # POST /api/v1/(users|vendors|admins)/register
       def create
-        result = operation_class.call(params: registration_params.to_h)
-
-        if result.success?
-          token = JsonWebToken.encode({ user_id: result[:model].id })
-          render json: { token: token, user: serialize(result[:model]) }, status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(operation_class, params: registration_params.to_h) do |operation_result|
+          token = JsonWebToken.encode({ user_id: operation_result[:model].id })
+          return render json: { token: token, user: serialize(operation_result[:model]) }, status: :created
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       private

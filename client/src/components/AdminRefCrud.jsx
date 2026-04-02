@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSelector } from 'react-redux'
 import { Plus, Pencil, Trash2, X, Loader } from 'lucide-react'
-import { selectCurrentToken } from '../store/authSlice'
+import { api, extractApiError } from '../utils/api'
 
 export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon, fields, color = 'rose' }) {
-  const token = useSelector(selectCurrentToken)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -14,12 +12,9 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   const fetchItems = async () => {
     try {
-      const res = await fetch(`/api/v1/${apiPath}`)
-      const data = await res.json()
+      const { data } = await api.get(`/api/v1/${apiPath}`)
       setItems(Array.isArray(data) ? data : [])
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -52,20 +47,21 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
     try {
       const key = paramKey || apiPath.replace(/s$/, '')
       const url = editing ? `/api/v1/${apiPath}/${editing.id}` : `/api/v1/${apiPath}`
-      const method = editing ? 'PATCH' : 'POST'
-      const res = await fetch(url, { method, headers, body: JSON.stringify({ [key]: formData }) })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
+      if (editing) {
+        await api.patch(url, { [key]: formData })
+      } else {
+        await api.post(url, { [key]: formData })
+      }
       setShowModal(false)
       fetchItems()
-    } catch (err) { setError(err.message) }
+    } catch (err) { setError(extractApiError(err, 'Operation failed')) }
     finally { setSubmitting(false) }
   }
 
   const handleDelete = async (id) => {
     if (!confirm(`Delete this ${entityName.toLowerCase().replace(/s$/, '')}?`)) return
     try {
-      await fetch(`/api/v1/${apiPath}/${id}`, { method: 'DELETE', headers })
+      await api.delete(`/api/v1/${apiPath}/${id}`)
       fetchItems()
     } catch (err) { console.error(err) }
   }

@@ -2,22 +2,18 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Building2, Monitor, Ticket, TrendingUp } from 'lucide-react'
-import { selectCurrentUser, selectCurrentToken } from '../../store/authSlice'
+import { selectCurrentUser } from '../../store/authSlice'
+import { api } from '../../utils/api'
 
 export default function VendorDashboard() {
   const user = useSelector(selectCurrentUser)
-  const token = useSelector(selectCurrentToken)
   const [theatres, setTheatres] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchTheatres() {
       try {
-        const res = await fetch(`/api/v1/theatres?vendor_id=${user?.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        if (!res.ok) throw new Error('Failed to fetch')
-        const data = await res.json()
+        const { data } = await api.get(`/api/v1/theatres?vendor_id=${user?.id}`)
         setTheatres(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error(err)
@@ -26,7 +22,7 @@ export default function VendorDashboard() {
       }
     }
     if (user?.id) fetchTheatres()
-  }, [user?.id, token])
+  }, [user?.id])
 
   const totalScreens = theatres.reduce((sum) => sum, 0) // placeholder
 

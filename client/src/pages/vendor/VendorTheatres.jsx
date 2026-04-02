@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Building2, Plus, Pencil, Trash2, X, Loader, MapPin } from 'lucide-react'
-import { selectCurrentUser, selectCurrentToken } from '../../store/authSlice'
+import { selectCurrentUser } from '../../store/authSlice'
+import { api, extractApiError } from '../../utils/api'
 
 export default function VendorTheatres() {
   const user = useSelector(selectCurrentUser)
-  const token = useSelector(selectCurrentToken)
   const [theatres, setTheatres] = useState([])
   const [cities, setCities] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,12 +16,9 @@ export default function VendorTheatres() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   const fetchTheatres = async () => {
     try {
-      const res = await fetch(`/api/v1/theatres?vendor_id=${user?.id}`, { headers })
-      const data = await res.json()
+      const { data } = await api.get(`/api/v1/theatres?vendor_id=${user?.id}`)
       setTheatres(Array.isArray(data) ? data : [])
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -29,8 +26,7 @@ export default function VendorTheatres() {
 
   const fetchCities = async () => {
     try {
-      const res = await fetch('/api/v1/cities')
-      const data = await res.json()
+      const { data } = await api.get('/api/v1/cities')
       setCities(Array.isArray(data) ? data : [])
     } catch (err) { console.error(err) }
   }
@@ -68,23 +64,16 @@ export default function VendorTheatres() {
     setError(null)
 
     try {
-      const url = editingTheatre
-        ? `/api/v1/theatres/${editingTheatre.id}`
-        : '/api/v1/theatres'
-      const method = editingTheatre ? 'PATCH' : 'POST'
-
-      const res = await fetch(url, {
-        method, headers,
-        body: JSON.stringify({ theatre: formData }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
+      if (editingTheatre) {
+        await api.patch(`/api/v1/theatres/${editingTheatre.id}`, { theatre: formData })
+      } else {
+        await api.post('/api/v1/theatres', { theatre: formData })
+      }
 
       setShowModal(false)
       fetchTheatres()
     } catch (err) {
-      setError(err.message)
+      setError(extractApiError(err, 'Operation failed'))
     } finally {
       setSubmitting(false)
     }
@@ -93,7 +82,7 @@ export default function VendorTheatres() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this theatre?')) return
     try {
-      await fetch(`/api/v1/theatres/${id}`, { method: 'DELETE', headers })
+      await api.delete(`/api/v1/theatres/${id}`)
       fetchTheatres()
     } catch (err) { console.error(err) }
   }

@@ -1,4 +1,4 @@
-class Format
+module Formats
   class Destroy < Trailblazer::Operation
     step :destroy
     fail :collect_errors

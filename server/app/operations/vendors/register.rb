@@ -1,5 +1,5 @@
-module Vendor
-  class Register < User::Register
+module Vendors
+  class Register < Users::Register
     private
 
     def assign_role(ctx, model:, **)

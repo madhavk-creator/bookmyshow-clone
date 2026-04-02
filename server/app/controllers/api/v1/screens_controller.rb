@@ -7,12 +7,11 @@ module Api
       # GET /api/v1/theatres/:theatre_id/screens
       # Public.
       def index
-        screens = policy_scope(Screen)
-                    .where(theatre: @theatre)
-                    .includes(:formats)
-                    .order(:name)
+        result = run(Screens::Index, current_user: current_user, params: { theatre_id: @theatre.id }) do |operation_result|
+          return render json: operation_result[:records].map { |screen| serialize(screen) }
+        end
 
-        render json: screens.map { |s| serialize(s) }
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # GET /api/v1/theatres/:theatre_id/screens/:id
@@ -25,56 +24,52 @@ module Api
       end
 
       # POST /api/v1/theatres/:theatre_id/screens
-      # Vendor (own theatre) or Admin.
+      # Vendor (own theatres) or Admin.
       def create
         authorize Screen
 
-        result = Screen::Create.call(
+        result = run(
+          Screens::Create,
           params:       screen_params.to_h.merge(theatre_id: @theatre.id),
           current_user: current_user
-        )
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model]), status: :created
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/theatres/:theatre_id/screens/:id
-      # Vendor (own theatre) or Admin.
+      # Vendor (own theatres) or Admin.
       def update
         screen = @theatre.screens.find_by(id: params[:id])
         return not_found unless screen
 
         authorize screen
 
-        result = Screen::Update.call(
+        result = run(
+          Screens::Update,
           params: screen_params.to_h.merge(id: screen.id)
-        )
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # DELETE /api/v1/theatres/:theatre_id/screens/:id
-      # Vendor (own theatre) or Admin.
+      # Vendor (own theatres) or Admin.
       def destroy
         screen = @theatre.screens.find_by(id: params[:id])
         return not_found unless screen
 
         authorize screen
 
-        result = Screen::Destroy.call(params: { id: screen.id })
-
-        if result.success?
-          render json: { message: 'Screen deleted successfully' }
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(Screens::Destroy, params: { id: screen.id }) do
+          return render json: { message: 'Screen deleted successfully' }
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       private

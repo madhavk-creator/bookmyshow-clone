@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSelector } from 'react-redux'
 import { Clapperboard, Plus, Pencil, Trash2, X, Loader, Clock, Star } from 'lucide-react'
-import { selectCurrentToken } from '../../store/authSlice'
+import { api, extractApiError } from '../../utils/api'
 
 export default function AdminMovies() {
-  const token = useSelector(selectCurrentToken)
   const [movies, setMovies] = useState([])
   const [languages, setLanguages] = useState([])
   const [formats, setFormats] = useState([])
@@ -16,12 +14,9 @@ export default function AdminMovies() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   const fetchMovies = async () => {
     try {
-      const res = await fetch('/api/v1/movies')
-      const data = await res.json()
+      const { data } = await api.get('/api/v1/movies')
       setMovies(Array.isArray(data) ? data : [])
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -29,11 +24,11 @@ export default function AdminMovies() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/v1/languages').then(r => r.json()),
-      fetch('/api/v1/formats').then(r => r.json()),
+      api.get('/api/v1/languages'),
+      api.get('/api/v1/formats'),
     ]).then(([langs, fmts]) => {
-      setLanguages(Array.isArray(langs) ? langs : [])
-      setFormats(Array.isArray(fmts) ? fmts : [])
+      setLanguages(Array.isArray(langs.data) ? langs.data : [])
+      setFormats(Array.isArray(fmts.data) ? fmts.data : [])
     }).catch(console.error)
     fetchMovies()
   }, [])
@@ -65,20 +60,21 @@ export default function AdminMovies() {
     setError(null)
     try {
       const url = editing ? `/api/v1/movies/${editing.id}` : '/api/v1/movies'
-      const method = editing ? 'PATCH' : 'POST'
       const payload = { ...formData, running_time: parseInt(formData.running_time) || 0 }
-      const res = await fetch(url, { method, headers, body: JSON.stringify({ movie: payload }) })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
+      if (editing) {
+        await api.patch(url, { movie: payload })
+      } else {
+        await api.post(url, { movie: payload })
+      }
       setShowModal(false)
       fetchMovies()
-    } catch (err) { setError(err.message) }
+    } catch (err) { setError(extractApiError(err, 'Operation failed')) }
     finally { setSubmitting(false) }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this movie?')) return
-    try { await fetch(`/api/v1/movies/${id}`, { method: 'DELETE', headers }); fetchMovies() }
+    try { await api.delete(`/api/v1/movies/${id}`); fetchMovies() }
     catch (err) { console.error(err) }
   }
 

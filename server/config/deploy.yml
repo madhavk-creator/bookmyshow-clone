@@ -1,7 +1,7 @@
 # Name of your application. Used to uniquely configure containers.
 service: server
 
-# Name of the container image (use your-user/app-name on external registries).
+# Name of the container image (use your-users/app-name on external registries).
 image: server
 
 # Deploy to these servers.
@@ -30,7 +30,7 @@ registry:
   server: localhost:5555
 
   # Needed for authenticated registries.
-  # username: your-user
+  # username: your-users
 
   # Always use an access token rather than real password when possible.
   # password:
@@ -86,9 +86,9 @@ builder:
   #   - GITHUB_TOKEN
   #   - RAILS_MASTER_KEY
 
-# Use a different ssh user than root
+# Use a different ssh users than root
 # ssh:
-#   user: app
+#   users: app
 
 # Use accessory services (secrets come from .kamal/secrets).
 # accessories:

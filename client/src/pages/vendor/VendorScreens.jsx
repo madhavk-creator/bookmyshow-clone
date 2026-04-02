@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector } from 'react-redux'
-import { Monitor, Plus, Pencil, Trash2, X, Loader, Building2, ChevronDown } from 'lucide-react'
-import { selectCurrentUser, selectCurrentToken } from '../../store/authSlice'
+import { Monitor, Plus, Pencil, Trash2, X, Loader, Building2, ChevronDown, Layers } from 'lucide-react'
+import { selectCurrentUser } from '../../store/authSlice'
+import { api, extractApiError } from '../../utils/api'
 
 export default function VendorScreens() {
   const user = useSelector(selectCurrentUser)
-  const token = useSelector(selectCurrentToken)
+  const navigate = useNavigate()
   const [theatres, setTheatres] = useState([])
   const [selectedTheatre, setSelectedTheatre] = useState(null)
   const [screens, setScreens] = useState([])
@@ -19,14 +21,12 @@ export default function VendorScreens() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   useEffect(() => {
     async function init() {
       try {
-        const [theatreRes, formatRes] = await Promise.all([
-          fetch(`/api/v1/theatres?vendor_id=${user?.id}`, { headers }).then(r => r.json()),
-          fetch('/api/v1/formats').then(r => r.json()),
+        const [{ data: theatreRes }, { data: formatRes }] = await Promise.all([
+          api.get(`/api/v1/theatres?vendor_id=${user?.id}`),
+          api.get('/api/v1/formats'),
         ])
         const t = Array.isArray(theatreRes) ? theatreRes : []
         setTheatres(t)
@@ -43,8 +43,7 @@ export default function VendorScreens() {
     async function fetchScreens() {
       setScreensLoading(true)
       try {
-        const res = await fetch(`/api/v1/theatres/${selectedTheatre.id}/screens`, { headers })
-        const data = await res.json()
+        const { data } = await api.get(`/api/v1/theatres/${selectedTheatre.id}/screens`)
         setScreens(Array.isArray(data) ? data : [])
       } catch (err) { console.error(err) }
       finally { setScreensLoading(false) }
@@ -78,32 +77,23 @@ export default function VendorScreens() {
     setError(null)
 
     try {
-      const url = editingScreen
-        ? `/api/v1/theatres/${selectedTheatre.id}/screens/${editingScreen.id}`
-        : `/api/v1/theatres/${selectedTheatre.id}/screens`
-      const method = editingScreen ? 'PATCH' : 'POST'
-
       const payload = {
         ...formData,
         total_rows: parseInt(formData.total_rows),
         total_columns: parseInt(formData.total_columns),
       }
 
-      const res = await fetch(url, {
-        method, headers,
-        body: JSON.stringify({ screen: payload }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
+      if (editingScreen) {
+        await api.patch(`/api/v1/theatres/${selectedTheatre.id}/screens/${editingScreen.id}`, { screen: payload })
+      } else {
+        await api.post(`/api/v1/theatres/${selectedTheatre.id}/screens`, { screen: payload })
+      }
 
       setShowModal(false)
-      // refetch screens
-      const screensRes = await fetch(`/api/v1/theatres/${selectedTheatre.id}/screens`, { headers })
-      const screensData = await screensRes.json()
+      const { data: screensData } = await api.get(`/api/v1/theatres/${selectedTheatre.id}/screens`)
       setScreens(Array.isArray(screensData) ? screensData : [])
     } catch (err) {
-      setError(err.message)
+      setError(extractApiError(err, 'Operation failed'))
     } finally {
       setSubmitting(false)
     }
@@ -112,7 +102,7 @@ export default function VendorScreens() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this screen?')) return
     try {
-      await fetch(`/api/v1/theatres/${selectedTheatre.id}/screens/${id}`, { method: 'DELETE', headers })
+      await api.delete(`/api/v1/theatres/${selectedTheatre.id}/screens/${id}`)
       setScreens(prev => prev.filter(s => s.id !== id))
     } catch (err) { console.error(err) }
   }
@@ -225,6 +215,12 @@ export default function VendorScreens() {
                     ))}
                   </div>
                 )}
+                <button
+                  onClick={() => navigate(`/vendor/layouts/${selectedTheatre.id}/${screen.id}`)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition-colors cursor-pointer"
+                >
+                  <Layers className="w-4 h-4" /> Manage Layouts
+                </button>
               </motion.div>
             ))}
           </AnimatePresence>

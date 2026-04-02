@@ -1,4 +1,4 @@
-class Theatre
+module Theatres
   class Destroy < Trailblazer::Operation
     step :find_theatre
     step :destroy
@@ -18,7 +18,7 @@ class Theatre
     def destroy(ctx, model:, **)
       model.destroy
     rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: ['Cannot delete theatre with existing screens'] }
+      ctx[:errors] = { base: ['Cannot delete theatres with existing screens'] }
       false
     end
 

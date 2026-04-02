@@ -7,7 +7,7 @@
 #
 # The frontend grid editor sends the full seat map on save.
 # label is auto-derived by Seat's before_validation callback.
-class SeatLayout
+module SeatLayouts
   class SyncSeats < Trailblazer::Operation
     step :find_layout
     step :validate_sections_exist
@@ -75,6 +75,7 @@ class SeatLayout
       Seat.transaction do
         Seat.where(seat_layout_id: model.id).destroy_all
         new_seats.each(&:save!)
+        model.update!(total_seats: new_seats.count(&:is_active))
       end
 
       true
@@ -86,7 +87,7 @@ class SeatLayout
     # Update the draft layout's total_seats count after replacing seats.
     # The authoritative sync happens again at publish time.
     def update_layout_seat_count(ctx, model:, **)
-      model.update!(total_seats: model.seats.where(is_active: true).count)
+      true
     end
 
     def collect_errors(ctx, model: nil, **)

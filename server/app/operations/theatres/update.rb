@@ -1,4 +1,4 @@
-class Theatre
+module Theatres
   class Update < Trailblazer::Operation
     step :find_theatre
     step :update_attributes

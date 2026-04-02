@@ -1,4 +1,4 @@
-class City
+module Cities
   class Update < Trailblazer::Operation
     step :find_city
     step :update_attributes

@@ -19,7 +19,7 @@ class UserCouponUsage < ApplicationRecord
     return if booking.blank? || user.blank?
     return if booking.user_id == user_id
 
-    errors.add(:user, "must match the booking user")
+    errors.add(:user, "must match the booking users")
   end
 
   def booking_matches_coupon

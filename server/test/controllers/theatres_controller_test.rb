@@ -10,7 +10,7 @@ class TheatresControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "should create theatre" do
+  test "should create theatres" do
     assert_difference("Theatre.count") do
       post theatres_url, params: { theatre: {} }, as: :json
     end
@@ -18,17 +18,17 @@ class TheatresControllerTest < ActionDispatch::IntegrationTest
     assert_response :created
   end
 
-  test "should show theatre" do
+  test "should shows theatres" do
     get theatre_url(@theatre), as: :json
     assert_response :success
   end
 
-  test "should update theatre" do
+  test "should update theatres" do
     patch theatre_url(@theatre), params: { theatre: {} }, as: :json
     assert_response :success
   end
 
-  test "should destroy theatre" do
+  test "should destroy theatres" do
     assert_difference("Theatre.count", -1) do
       delete theatre_url(@theatre), as: :json
     end

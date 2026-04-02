@@ -1,6 +1,6 @@
 # Updates name, dimensions, or display metadata.
 # Blocked on published/archived layouts via policy.
-class SeatLayout
+module SeatLayouts
   class Update < Trailblazer::Operation
     step :find_layout
     step :assign_attributes

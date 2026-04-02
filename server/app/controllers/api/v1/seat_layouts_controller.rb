@@ -1,16 +1,17 @@
 module Api
   module V1
     class SeatLayoutsController < ApplicationController
-      before_action :authenticate!, except: %i[index show]
+      before_action :authenticate!, except: %i[index shows]
+      before_action :authenticate_optional!, only: %i[index shows]
       before_action :find_screen
 
       # GET /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts
       def index
-        layouts = policy_scope(SeatLayout)
-                    .where(screen: @screen)
-                    .order(version_number: :desc)
+        result = run(SeatLayouts::Index, current_user: current_user, params: { screen_id: @screen.id }) do |operation_result|
+          return render json: operation_result[:records].map { |layout| serialize(layout) }
+        end
 
-        render json: layouts.map { |l| serialize(l) }
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # GET /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts/:id
@@ -28,15 +29,14 @@ module Api
       def create
         authorize SeatLayout.new(screen: @screen)
 
-        result = SeatLayout::Create.call(
+        result = run(
+          SeatLayouts::Create,
           params: layout_params.to_h.merge(screen_id: @screen.id)
-        )
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model]), status: :created
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts/:id
@@ -46,15 +46,14 @@ module Api
 
         authorize layout
 
-        result = SeatLayout::Update.call(
+        result = run(
+          SeatLayouts::Update,
           params: layout_params.to_h.merge(id: layout.id)
-        )
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # POST /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts/:id/publish
@@ -64,13 +63,11 @@ module Api
 
         authorize layout
 
-        result = SeatLayout::Publish.call(params: { id: layout.id })
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(SeatLayouts::Publish, params: { id: layout.id }) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # POST /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts/:id/archive
@@ -80,13 +77,11 @@ module Api
 
         authorize layout
 
-        result = SeatLayout::Archive.call(params: { id: layout.id })
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(SeatLayouts::Archive, params: { id: layout.id }) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PUT /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts/:id/sections
@@ -98,15 +93,14 @@ module Api
 
         authorize layout, :sync_sections?
 
-        result = SeatLayout::SyncSections.call(
+        result = run(
+          SeatLayouts::SyncSections,
           params: { id: layout.id, sections: sections_params }
-        )
-
-        if result.success?
-          render json: serialize(result[:model], detailed: true)
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model], detailed: true)
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       # PUT /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts/:id/seats
@@ -120,15 +114,14 @@ module Api
 
         authorize layout, :sync_seats?
 
-        result = SeatLayout::SyncSeats.call(
+        result = run(
+          SeatLayouts::SyncSeats,
           params: { id: layout.id, seats: seats_params }
-        )
-
-        if result.success?
-          render json: serialize(result[:model], detailed: true)
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model], detailed: true)
         end
+
+        render json: { errors: result[:errors] }, status: :unprocessable_entity
       end
 
       private
