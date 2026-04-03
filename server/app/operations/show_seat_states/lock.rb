@@ -11,6 +11,8 @@ module ShowSeatStates
         ctx[:errors] = { show: ['Show not found or not schedulable'] }
         return false
       end
+
+      true
     end
 
     def validate_seats(ctx, params:, show:, **)
@@ -42,6 +44,7 @@ module ShowSeatStates
       end
 
       ctx[:seats] = valid_seats
+      true
     end
 
     def acquire_locks(ctx, params:, show:, seats:, **)

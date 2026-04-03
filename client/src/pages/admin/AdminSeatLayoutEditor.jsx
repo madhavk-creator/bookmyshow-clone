@@ -6,6 +6,7 @@ import {
   Armchair, Accessibility, Heart, MousePointer, Eraser
 } from 'lucide-react'
 import { api, extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
 
 const SEAT_KINDS = [
   { value: 'standard',   label: 'Standard',   icon: Armchair },
@@ -15,7 +16,7 @@ const SEAT_KINDS = [
   { value: 'couple',     label: 'Couple',     icon: Heart },
 ]
 
-const DEFAULT_SECTION_COLORS = ['#8B5CF6', '#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6']
+const DEFAULT_SECTION_COLORS = ['#CEBFF1', '#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6']
 
 export default function AdminSeatLayoutEditor() {
   const { theatreId, screenId, layoutId } = useParams()
@@ -118,7 +119,7 @@ export default function AdminSeatLayoutEditor() {
       return
     }
 
-    if (!selectedSection) { alert('Select a section first'); return }
+    if (!selectedSection) { showWarningToast('Select a section first.'); return }
 
     setSeats(prev => {
       let updated = [...prev]
@@ -176,7 +177,8 @@ export default function AdminSeatLayoutEditor() {
       } else if (serverSections.length > 0) {
         setSelectedSection(serverSections[0].id)
       }
-    } catch (err) { alert(extractApiError(err, 'Save failed')) }
+      showSuccessToast('Sections saved successfully.')
+    } catch (err) { showApiErrorToast(err, 'Save failed') }
     finally { setSaving(false) }
   }
 
@@ -196,7 +198,8 @@ export default function AdminSeatLayoutEditor() {
       await api.put(`${base}/seats`, { seats: payload })
       // Refresh
       await fetchLayout()
-    } catch (err) { alert(extractApiError(err, 'Save failed')) }
+      showSuccessToast('Seat map saved successfully.')
+    } catch (err) { showApiErrorToast(err, 'Save failed') }
     finally { setSaving(false) }
   }
 
@@ -314,7 +317,7 @@ export default function AdminSeatLayoutEditor() {
                   onClick={() => { setSelectedSection(sec.id); setTool('paint') }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all cursor-pointer ${selectedSection === sec.id ? 'border-primary-500/40 bg-primary-500/10' : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-500/20 bg-neutral-100 dark:bg-neutral-800'}`}
                 >
-                  <div className="w-4 h-4 rounded shrink-0" style={{ backgroundColor: sec.color_hex || '#8B5CF6' }} />
+                  <div className="w-4 h-4 rounded shrink-0" style={{ background: `linear-gradient(135deg, ${sec.color_hex || '#8B5CF6'}50, ${sec.color_hex || '#8B5CF6'}10)`, border: `1px solid ${sec.color_hex || '#8B5CF6'}` }} />
                   <span className="flex-1 text-neutral-700 dark:text-neutral-300 truncate">{sec.name}</span>
                   <span className="text-[10px] text-neutral-400">{seats.filter(s => s.seat_section_id === sec.id).length}</span>
                   {isDraft && (
@@ -335,7 +338,7 @@ export default function AdminSeatLayoutEditor() {
               <div className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-neutral-200 dark:bg-neutral-700 border-2 border-dashed border-neutral-300 dark:border-neutral-600" /><span>Empty cell</span></div>
               {sections.map(sec => (
                 <div key={sec.id} className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded" style={{ backgroundColor: sec.color_hex || '#8B5CF6' }} />
+                  <div className="w-6 h-6 rounded" style={{ background: `linear-gradient(135deg, ${sec.color_hex || '#8B5CF6'}50, ${sec.color_hex || '#8B5CF6'}10)`, border: `1.5px solid ${sec.color_hex || '#8B5CF6'}` }} />
                   <span>{sec.name}</span>
                 </div>
               ))}
@@ -389,7 +392,9 @@ export default function AdminSeatLayoutEditor() {
                         style={{
                           width: isCouple ? 62 : 28,
                           height: 28,
-                          backgroundColor: seat ? (section?.color_hex || '#8B5CF6') : 'transparent',
+                          background: seat ? `linear-gradient(135deg, ${section?.color_hex || '#8B5CF6'}50, ${section?.color_hex || '#8B5CF6'}10)` : 'transparent',
+                          border: seat ? `1.5px solid ${section?.color_hex || '#8B5CF6'}` : undefined,
+                          textShadow: seat ? '0 1px 2px rgba(0,0,0,0.8)' : undefined,
                           userSelect: 'none',
                         }}
                         title={seat ? `${seat.row_label || String.fromCharCode(65 + row)}${seat.seat_number || ''} (${seat.seat_kind})` : `${String.fromCharCode(65 + row)}${col + 1}`}

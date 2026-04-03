@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, MapPin, Plus, Pencil, Trash2, X, Loader, Layers } from 'lucide-react'
 import { api, extractApiError, getVendors } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function AdminTheatres() {
   const navigate = useNavigate()
@@ -15,12 +17,16 @@ export default function AdminTheatres() {
   const [formData, setFormData] = useState({ name: '', building_name: '', street_address: '', pincode: '', city_id: '', vendor_id: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
 
   const fetchTheatres = async () => {
     try {
       const { data } = await api.get('/api/v1/theatres')
       setTheatres(Array.isArray(data) ? data : (data.theatres || []))
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to load theatres')
+    }
     finally { setLoading(false) }
   }
 
@@ -28,14 +34,20 @@ export default function AdminTheatres() {
     try {
       const { data } = await api.get('/api/v1/cities')
       setCities(Array.isArray(data) ? data : [])
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to load cities')
+    }
   }
 
   const fetchVendors = async () => {
     try {
       const { data } = await getVendors()
       setVendors(Array.isArray(data) ? data : (data.vendors || []))
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to load vendors')
+    }
   }
 
   useEffect(() => {
@@ -82,21 +94,34 @@ export default function AdminTheatres() {
       } else {
         await api.post('/api/v1/theatres', { theatre: formData })
       }
+      showSuccessToast(`Theatre ${editingTheatre ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
       fetchTheatres()
     } catch (err) {
-      setError(extractApiError(err, 'Operation failed'))
+      const message = extractApiError(err, 'Operation failed')
+      setError(message)
+      showApiErrorToast(err, 'Operation failed')
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this theatre?')) return
+    const confirmed = await confirm({
+      title: 'Delete Theatre?',
+      message: 'This theatre will be removed from the platform catalogue.',
+      confirmText: 'Delete Theatre',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     try {
       await api.delete(`/api/v1/theatres/${id}`)
+      showSuccessToast('Theatre deleted successfully.')
       fetchTheatres()
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to delete theatre')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

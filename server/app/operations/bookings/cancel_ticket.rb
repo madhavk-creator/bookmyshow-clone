@@ -17,6 +17,8 @@ module Bookings
         ctx[:errors] = { base: ['Booking not found'] }
         return false
       end
+
+      true
     end
 
     def find_ticket(ctx, params:, model:, **)
@@ -25,6 +27,8 @@ module Bookings
         ctx[:errors] = { base: ['Ticket not found in this booking'] }
         return false
       end
+
+      true
     end
 
     def validate_cancellable(ctx, model:, ticket:, **)
@@ -37,6 +41,8 @@ module Bookings
         ctx[:errors] = { base: ['Ticket is already cancelled'] }
         return false
       end
+
+      true
     end
 
     def cancel_ticket_transactionally(ctx, model:, ticket:, **)

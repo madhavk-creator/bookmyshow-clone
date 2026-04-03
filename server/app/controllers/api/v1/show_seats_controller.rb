@@ -119,7 +119,7 @@ module Api
       private
 
       def find_show
-        @show = Show.find_by(id: params[:show_id])
+        @show = Show.find_by(id: params[:id] || params[:show_id])
         render json: { error: 'Show not found' }, status: :not_found unless @show
       end
     end

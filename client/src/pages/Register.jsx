@@ -4,14 +4,14 @@ import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Phone, ArrowRight, Loader } from 'lucide-react'
 import { setCredentials } from '../store/authSlice'
-import { api, extractApiError } from '../utils/api'
+import { api } from '../utils/api'
+import { showApiErrorToast, showSuccessToast, showWarningToast } from '../utils/toast'
 
 export default function Register() {
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', password: '', password_confirmation: ''
   })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
@@ -20,10 +20,9 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
 
     if (formData.password !== formData.password_confirmation) {
-      setError("Passwords do not match")
+      showWarningToast('Passwords do not match.')
       setLoading(false)
       return
     }
@@ -31,9 +30,10 @@ export default function Register() {
     try {
       const { data } = await api.post('/api/v1/users/register', { registration: formData })
       dispatch(setCredentials({ token: data.token, user: data.user }))
+      showSuccessToast(`Account created for ${data.user?.name || formData.name}.`)
       navigate('/')
     } catch (err) {
-      setError(extractApiError(err, 'Failed to register'))
+      showApiErrorToast(err, 'Failed to register')
     } finally {
       setLoading(false)
     }
@@ -55,13 +55,6 @@ export default function Register() {
           <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">Create Account</h1>
           <p className="text-neutral-500 dark:text-neutral-400">Join us for the best movie booking experience</p>
         </div>
-
-        {error && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/50 text-red-500 text-sm text-center font-medium">
-            {error}
-          </motion.div>
-        )}
-
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Full Name</label>

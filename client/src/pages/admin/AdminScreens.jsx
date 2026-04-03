@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Monitor, Plus, Pencil, Trash2, X, Loader, ArrowLeft, Layers } from 'lucide-react'
 import { api, extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function AdminScreens() {
   const { theatreId } = useParams()
@@ -17,6 +19,7 @@ export default function AdminScreens() {
   const [formData, setFormData] = useState({ name: '', total_rows: '', total_columns: '', status: 'active', format_ids: [] })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
 
   useEffect(() => {
     async function init() {
@@ -95,11 +98,21 @@ export default function AdminScreens() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this screen?')) return
+    const confirmed = await confirm({
+      title: 'Delete Screen?',
+      message: 'This screen and its related setup will be removed.',
+      confirmText: 'Delete Screen',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     try {
       await api.delete(`/api/v1/theatres/${theatreId}/screens/${id}`)
       setScreens(prev => prev.filter(s => s.id !== id))
-    } catch (err) { console.error(err) }
+      showSuccessToast('Screen deleted successfully.')
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to delete screen')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

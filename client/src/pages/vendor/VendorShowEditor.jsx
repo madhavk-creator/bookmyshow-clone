@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Save, Loader, AlertTriangle, Calendar, Layers, Popcorn, Languages, Video, FileText } from 'lucide-react'
 import { api, extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
 
 export default function VendorShowEditor() {
   const { theatreId, screenId, showId } = useParams()
@@ -59,7 +60,7 @@ export default function VendorShowEditor() {
             movie_language_id: show.language?.id || '',
             movie_format_id: show.format?.id || '',
             seat_layout_id: show.seat_layout_id || '',
-            start_time: new Date(show.start_time).toISOString().slice(0, 16),
+            start_time: new Date(new Date(show.start_time).getTime() - new Date(show.start_time).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
             section_prices: show.section_prices || []
           })
           
@@ -97,6 +98,7 @@ export default function VendorShowEditor() {
     } catch (err) {
       console.error('Failed to fetch layout details', err)
       setError('Could not load sections for selected layout.')
+      showApiErrorToast(err, 'Could not load sections for selected layout.')
     }
   }
 
@@ -123,8 +125,8 @@ export default function VendorShowEditor() {
         setFormData(prev => ({
           ...prev,
           movie_id: value,
-          movie_language_id: selectedMovie.languages?.length === 1 ? selectedMovie.languages[0].id : '',
-          movie_format_id: selectedMovie.formats?.length === 1 ? selectedMovie.formats[0].id : ''
+          movie_language_id: selectedMovie.languages?.length === 1 ? selectedMovie.languages[0].movie_language_id || '' : '',
+          movie_format_id: selectedMovie.formats?.length === 1 ? selectedMovie.formats[0].movie_format_id || '' : ''
         }))
       } else {
         setLanguages([])
@@ -156,6 +158,7 @@ export default function VendorShowEditor() {
     // Basic validation
     if (!formData.movie_id || !formData.start_time || !formData.seat_layout_id || !formData.movie_language_id || !formData.movie_format_id) {
       setError('Please fill in all required show details.')
+      showWarningToast('Please fill in all required show details.')
       setSubmitting(false)
       return
     }
@@ -163,6 +166,7 @@ export default function VendorShowEditor() {
     for (const sp of formData.section_prices) {
       if (!sp.base_price || isNaN(sp.base_price) || Number(sp.base_price) < 0) {
         setError('Please enter a valid positive base price for all sections.')
+        showWarningToast('Please enter a valid positive base price for all sections.')
         setSubmitting(false)
         return
       }
@@ -171,7 +175,7 @@ export default function VendorShowEditor() {
     try {
       const payload = {
         show: {
-          start_time: formData.start_time,
+          start_time: new Date(formData.start_time).toISOString(),
           section_prices: formData.section_prices.map(sp => ({
             seat_section_id: sp.seat_section_id,
             base_price: Number(sp.base_price)
@@ -191,10 +195,11 @@ export default function VendorShowEditor() {
       } else {
         await api.post(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows`, payload)
       }
-      
+      showSuccessToast(`Show ${isEditing ? 'updated' : 'scheduled'} successfully.`)
       navigate(`/vendor/shows/${theatreId}/${screenId}`)
     } catch (err) {
       setError(extractApiError(err, 'Failed to save show'))
+      showApiErrorToast(err, 'Failed to save show')
     } finally {
       setSubmitting(false)
     }
@@ -279,7 +284,7 @@ export default function VendorShowEditor() {
                 className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/50 disabled:opacity-50"
               >
                 <option value="">Select language</option>
-                {languages.map(l => <option key={l.id} value={l.id}>{l.name} ({l.code})</option>)}
+                {languages.map(l => <option key={l.movie_language_id || l.id} value={l.movie_language_id || ''}>{l.name} ({l.code})</option>)}
               </select>
             </div>
 
@@ -295,7 +300,7 @@ export default function VendorShowEditor() {
                 className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/50 disabled:opacity-50"
               >
                 <option value="">Select format</option>
-                {formats.map(f => <option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
+                {formats.map(f => <option key={f.movie_format_id || f.id} value={f.movie_format_id || ''}>{f.name} ({f.code})</option>)}
               </select>
             </div>
 

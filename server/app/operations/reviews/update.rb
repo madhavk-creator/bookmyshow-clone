@@ -11,11 +11,15 @@ module Reviews
         ctx[:errors] = { base: ['Review not found'] }
         return false
       end
+
+      true
     end
 
     def assign_attributes(ctx, params:, model:, **)
       model.description = params[:description] if params.key?(:description)
       model.rating      = params[:rating]      if params.key?(:rating)
+
+      true
     end
 
     def persist(ctx, model:, **)

@@ -13,6 +13,8 @@ module Reviews
         ctx[:errors] = { movie: ['Movie not found'] }
         return false
       end
+
+      true
     end
 
     def check_not_already_reviewed(ctx, current_user:, movie:, **)
@@ -20,6 +22,8 @@ module Reviews
         ctx[:errors] = { base: ['You have already reviewed this movie'] }
         return false
       end
+
+      true
     end
 
     # User must have a valid ticket for this movie to leave a review.
@@ -36,6 +40,8 @@ module Reviews
         ctx[:errors] = { base: ['You can only review movies you have watched'] }
         return false
       end
+
+      true
     end
 
     def build_review(ctx, params:, current_user:, movie:, **)
@@ -46,6 +52,8 @@ module Reviews
         rating:      params[:rating],
         reviewed_on: Date.current
       )
+
+      true
     end
 
     def persist(ctx, model:, **)

@@ -29,59 +29,90 @@ import AdminRegisterPage from './pages/admin/AdminRegister'
 import AdminScreens from './pages/admin/AdminScreens'
 import AdminSeatLayoutManager from './pages/admin/AdminSeatLayoutManager'
 import AdminSeatLayoutEditor from './pages/admin/AdminSeatLayoutEditor'
+import AppToastProvider from './components/AppToastProvider'
+import { ConfirmProvider } from './components/ConfirmProvider'
+import { CityProvider } from './context/CityContext'
+import PublicMovieDetail from './pages/PublicMovieDetail'
+import PublicShows from './pages/PublicShows'
+import PublicSeatSelection from './pages/PublicSeatSelection'
+import PublicCheckout from './pages/PublicCheckout'
+import UserBookings from './pages/UserBookings'
+import UserProfile from './pages/UserProfile'
+import UserSettings from './pages/UserSettings'
 
 function App() {
   return (
-    <Routes>
-      {/* Public routes (top navbar) */}
-      <Route element={<PublicLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-      </Route>
+    <CityProvider>
+      <ConfirmProvider>
+        <>
+        <Routes>
+          {/* Public routes (top navbar) */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/movies/:id" element={<PublicMovieDetail />} />
+            <Route path="/movies/:id/shows" element={<PublicShows />} />
+            <Route path="/shows/:showId/seats" element={<PublicSeatSelection />} />
+          </Route>
 
-      {/* Vendor auth (standalone) */}
-      <Route element={<VendorAuthLayout />}>
-        <Route path="/vendor/login" element={<VendorLogin />} />
-        <Route path="/vendor/register" element={<VendorRegister />} />
-      </Route>
+          {/* User auth layout (standalone or with public layout) */}
+          <Route element={<ProtectedRoute allowedRoles={['user', 'vendor', 'admin']} />}>
+            <Route element={<PublicLayout />}>
+              <Route path="/checkout/:bookingId" element={<PublicCheckout />} />
+              <Route path="/user/bookings" element={<UserBookings />} />
+              <Route path="/user/profile" element={<UserProfile />} />
+              <Route path="/user/settings" element={<UserSettings />} />
+            </Route>
+          </Route>
 
-      {/* Vendor dashboard (sidebar) */}
-      <Route element={<ProtectedRoute allowedRoles={['vendor']} />}>
-        <Route path="/vendor" element={<VendorLayout />}>
-          <Route index element={<VendorDashboard />} />
-          <Route path="theatres" element={<VendorTheatres />} />
-          <Route path="screens" element={<VendorScreens />} />
-          <Route path="layouts/:theatreId/:screenId" element={<SeatLayoutManager />} />
-          <Route path="layouts/:theatreId/:screenId/:layoutId" element={<SeatLayoutEditor />} />
-          <Route path="shows/:theatreId/:screenId" element={<VendorShows />} />
-          <Route path="shows/:theatreId/:screenId/new" element={<VendorShowEditor />} />
-          <Route path="shows/:theatreId/:screenId/:showId/edit" element={<VendorShowEditor />} />
-          <Route path="settings" element={<VendorSettings />} />
-        </Route>
-      </Route>
+          {/* Vendor auth (standalone) */}
+          <Route element={<VendorAuthLayout />}>
+            <Route path="/vendor/login" element={<VendorLogin />} />
+            <Route path="/vendor/register" element={<VendorRegister />} />
+          </Route>
 
-      {/* Admin auth (standalone) */}
-      <Route element={<AdminAuthLayout />}>
-        <Route path="/admin/login" element={<AdminLogin />} />
-      </Route>
+          {/* Vendor dashboard (sidebar) */}
+          <Route element={<ProtectedRoute allowedRoles={['vendor']} />}>
+            <Route path="/vendor" element={<VendorLayout />}>
+              <Route index element={<VendorDashboard />} />
+              <Route path="theatres" element={<VendorTheatres />} />
+              <Route path="screens" element={<VendorScreens />} />
+              <Route path="layouts/:theatreId/:screenId" element={<SeatLayoutManager />} />
+              <Route path="layouts/:theatreId/:screenId/:layoutId" element={<SeatLayoutEditor />} />
+              <Route path="shows/:theatreId/:screenId" element={<VendorShows />} />
+              <Route path="shows/:theatreId/:screenId/new" element={<VendorShowEditor />} />
+              <Route path="shows/:theatreId/:screenId/:showId/edit" element={<VendorShowEditor />} />
+              <Route path="settings" element={<UserSettings />} />
+            </Route>
+          </Route>
 
-      {/* Admin dashboard (sidebar) */}
-      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="movies" element={<AdminMovies />} />
-          <Route path="cities" element={<AdminCities />} />
-          <Route path="languages" element={<AdminLanguages />} />
-          <Route path="formats" element={<AdminFormats />} />
-          <Route path="theatres" element={<AdminTheatres />} />
-          <Route path="theatres/:theatreId/screens" element={<AdminScreens />} />
-          <Route path="layouts/:theatreId/:screenId" element={<AdminSeatLayoutManager />} />
-          <Route path="layouts/:theatreId/:screenId/:layoutId" element={<AdminSeatLayoutEditor />} />
-          <Route path="register" element={<AdminRegisterPage />} />
-        </Route>
-      </Route>
-    </Routes>
+          {/* Admin auth (standalone) */}
+          <Route element={<AdminAuthLayout />}>
+            <Route path="/admin/login" element={<AdminLogin />} />
+          </Route>
+
+          {/* Admin dashboard (sidebar) */}
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="movies" element={<AdminMovies />} />
+              <Route path="cities" element={<AdminCities />} />
+              <Route path="languages" element={<AdminLanguages />} />
+              <Route path="formats" element={<AdminFormats />} />
+              <Route path="theatres" element={<AdminTheatres />} />
+              <Route path="theatres/:theatreId/screens" element={<AdminScreens />} />
+              <Route path="layouts/:theatreId/:screenId" element={<AdminSeatLayoutManager />} />
+              <Route path="layouts/:theatreId/:screenId/:layoutId" element={<AdminSeatLayoutEditor />} />
+              <Route path="register" element={<AdminRegisterPage />} />
+              <Route path="settings" element={<UserSettings />} />
+            </Route>
+          </Route>
+        </Routes>
+        <AppToastProvider />
+      </>
+    </ConfirmProvider>
+    </CityProvider>
   )
 }
 

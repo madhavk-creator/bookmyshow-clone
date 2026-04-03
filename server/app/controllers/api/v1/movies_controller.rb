@@ -105,9 +105,23 @@ module Api
           release_date: movie.release_date,
           languages:    movie.languages.map { |l|
             entry = movie.movie_languages.find { |ml| ml.language_id == l.id }
-            { id: l.id, name: l.name, code: l.code, type: entry&.language_type }
+            {
+              id: l.id,
+              movie_language_id: entry&.id,
+              name: l.name,
+              code: l.code,
+              type: entry&.language_type
+            }
           },
-          formats:      movie.formats.map { |f| { id: f.id, name: f.name, code: f.code } }
+          formats:      movie.formats.map { |f|
+            entry = movie.movie_formats.find { |mf| mf.format_id == f.id }
+            {
+              id: f.id,
+              movie_format_id: entry&.id,
+              name: f.name,
+              code: f.code
+            }
+          }
         }
 
         if detailed

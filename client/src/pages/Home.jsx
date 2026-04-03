@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Clock, MapPin, PlayCircle, Loader, Film } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../utils/api'
+import { useCity } from '../context/CityContext'
 
 export default function Home() {
+  const navigate = useNavigate()
   const [movies, setMovies] = useState([])
   const [cities, setCities] = useState([])
-  const [selectedCity, setSelectedCity] = useState('')
+  const { selectedCity, setSelectedCity } = useCity()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -20,7 +23,7 @@ export default function Home() {
         const citiesArray = Array.isArray(cityRes) ? cityRes : []
         setMovies(moviesArray)
         setCities(citiesArray)
-        if (citiesArray.length > 0) setSelectedCity(citiesArray[0].id)
+        if (citiesArray.length > 0 && !selectedCity) setSelectedCity(citiesArray[0].id)
       } catch (err) {
         console.error("Failed to load data", err)
         setMovies([])
@@ -94,6 +97,7 @@ export default function Home() {
               {movies.map((movie, index) => (
                 <motion.div
                   key={movie.id}
+                  onClick={() => navigate(`/movies/${movie.id}`)}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.5 }}
@@ -119,9 +123,14 @@ export default function Home() {
                       <div className="flex items-center gap-1"><Clock className="w-4 h-4"/> {movie.running_time || 120}m</div>
                       <div className="flex items-center gap-1 text-primary-600 dark:text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded text-xs">{movie.rating || 'UA'}</div>
                     </div>
-                    <button className="w-full py-2.5 rounded-xl border-2 border-primary-500/50 text-primary-600 dark:text-primary-400 font-bold hover:bg-primary-500 hover:text-white hover:border-transparent transition-all">
-                      Book Tickets
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/movies/${movie.id}`) }} className="flex-1 py-2.5 rounded-xl border-2 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all text-sm">
+                        Read More
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/movies/${movie.id}/shows`) }} className="flex-1 py-2.5 rounded-xl border-2 border-primary-500/50 text-primary-600 dark:text-primary-400 font-bold hover:bg-primary-500 hover:text-white hover:border-transparent transition-all text-sm">
+                        Book Tickets
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               ))}

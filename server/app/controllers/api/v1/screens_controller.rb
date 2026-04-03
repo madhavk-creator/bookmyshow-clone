@@ -30,7 +30,7 @@ module Api
 
         result = run(
           Screens::Create,
-          params:       screen_params.to_h.merge(theatre_id: @theatre.id),
+          params:       screen_params.to_h.deep_symbolize_keys.merge(theatre_id: @theatre.id),
           current_user: current_user
         ) do |operation_result|
           return render json: serialize(operation_result[:model]), status: :created
@@ -49,7 +49,7 @@ module Api
 
         result = run(
           Screens::Update,
-          params: screen_params.to_h.merge(id: screen.id)
+          params: screen_params.to_h.deep_symbolize_keys.merge(id: screen.id)
         ) do |operation_result|
           return render json: serialize(operation_result[:model])
         end

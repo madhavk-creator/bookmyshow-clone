@@ -12,14 +12,20 @@ Rails.application.routes.draw do
       scope :users   do
         post 'register', to: 'users/registrations#create'
         post 'login',    to: 'users/sessions#create'
+        patch 'profile',  to: 'users/profiles#update'
+        patch 'password', to: 'users/profiles#update_password'
       end
       scope :vendors do
         post 'register', to: 'vendors/registrations#create'
         post 'login',    to: 'vendors/sessions#create'
+        patch 'profile',  to: 'vendors/profiles#update'
+        patch 'password', to: 'vendors/profiles#update_password'
       end
       scope :admin   do
         post 'register', to: 'admin/registrations#create'
         post 'login',    to: 'admin/sessions#create'
+        patch 'profile',  to: 'admin/profiles#update'
+        patch 'password', to: 'admin/profiles#update_password'
       end
 
       # ── Reference data ─────────────────────────────────────────────────────

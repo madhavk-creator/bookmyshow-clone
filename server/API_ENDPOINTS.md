@@ -2,15 +2,27 @@
 #
 #   POST  /api/v1/users/register
 #   POST  /api/v1/users/login
+#   PATCH /api/v1/users/profile
+#   PATCH /api/v1/users/password
 #
 #   POST  /api/v1/vendors/register
 #   POST  /api/v1/vendors/login
+#   PATCH /api/v1/vendors/profile
+#   PATCH /api/v1/vendors/password
 #
 #   POST  /api/v1/admin/register    (requires admin JWT in Authorization header)
 #   POST  /api/v1/admin/login
+#   PATCH /api/v1/admin/profile
+#   PATCH /api/v1/admin/password
 #
 # All endpoints accept:  { user: { name:, email:, password:, password_confirmation:, phone } }
 # All endpoints return:  { token:, user: { id:, name:, email:, role: } }
+#
+# Profile update payload:
+#   { "profile": { "name": "New Name", "email": "new@example.com", "phone": "+91 99999 99999" } }
+#
+# Password update payload:
+#   { "password": { "current_password": "old-secret", "password": "new-secret", "password_confirmation": "new-secret" } }
 #
 #  Pagination
 #   Supported on: movies, theatres, shows, reviews, bookings

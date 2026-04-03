@@ -134,6 +134,16 @@ module Api
         base = {
           id:             show.id,
           screen_id:      show.screen_id,
+          screen:         { 
+            id: show.screen.id, 
+            name: show.screen.name,
+            theatre: { 
+              id: show.screen.theatre.id, 
+              name: show.screen.theatre.name,
+              building_name: show.screen.theatre.building_name,
+              street_address: show.screen.theatre.street_address
+            }
+          },
           movie:          { id: show.movie.id, title: show.movie.title, running_time: show.movie.running_time },
           language:       { id: show.movie_language.id, code: show.movie_language.language.code },
           format:         { id: show.movie_format.id,   code: show.movie_format.format.code },

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Layers, Plus, Pencil, Loader, X, CheckCircle, Archive, ArrowLeft, Eye } from 'lucide-react'
 import { api, extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function SeatLayoutManager() {
   const { theatreId, screenId } = useParams()
@@ -14,6 +16,7 @@ export default function SeatLayoutManager() {
   const [formData, setFormData] = useState({ name: '', total_rows: '', total_columns: '', screen_label: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
 
   const base = `/api/v1/theatres/${theatreId}/screens/${screenId}`
 
@@ -41,26 +44,44 @@ export default function SeatLayoutManager() {
       })
       setShowModal(false)
       setFormData({ name: '', total_rows: '', total_columns: '', screen_label: '' })
+      showSuccessToast('Seat layout created. Start mapping seats now.')
       // Navigate directly to the editor grid for seat mapping
       navigate(`/vendor/layouts/${theatreId}/${screenId}/${data.id}`)
-    } catch (err) { setError(extractApiError(err, 'Create failed')) }
+    } catch (err) {
+      setError(extractApiError(err, 'Create failed'))
+      showApiErrorToast(err, 'Create failed')
+    }
     finally { setSubmitting(false) }
   }
 
   const handlePublish = async (layoutId) => {
-    if (!confirm('Publish this layout? Any currently published layout will be archived.')) return
+    const confirmed = await confirm({
+      title: 'Publish Layout?',
+      message: 'Any currently published layout for this screen will be archived.',
+      confirmText: 'Publish Layout',
+      tone: 'warning',
+    })
+    if (!confirmed) return
     try {
       await api.post(`${base}/seat_layouts/${layoutId}/publish`)
+      showSuccessToast('Seat layout published successfully.')
       fetchLayouts()
-    } catch (err) { alert(extractApiError(err, 'Publish failed')) }
+    } catch (err) { showApiErrorToast(err, 'Publish failed') }
   }
 
   const handleArchive = async (layoutId) => {
-    if (!confirm('Archive this layout?')) return
+    const confirmed = await confirm({
+      title: 'Archive Layout?',
+      message: 'This layout will remain available as a read-only archived version.',
+      confirmText: 'Archive Layout',
+      tone: 'warning',
+    })
+    if (!confirmed) return
     try {
       await api.post(`${base}/seat_layouts/${layoutId}/archive`)
+      showSuccessToast('Seat layout archived successfully.')
       fetchLayouts()
-    } catch (err) { alert(extractApiError(err, 'Archive failed')) }
+    } catch (err) { showApiErrorToast(err, 'Archive failed') }
   }
 
   const statusConfig = {

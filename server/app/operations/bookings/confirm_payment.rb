@@ -20,6 +20,8 @@ module Bookings
         ctx[:errors] = { base: ['Booking not found'] }
         return false
       end
+
+      true
     end
 
     def validate_pending(ctx, model:, **)
@@ -33,6 +35,8 @@ module Bookings
         ctx[:errors] = { base: ['Booking has expired — seat locks were released'] }
         return false
       end
+
+      true
     end
 
     def confirm_payment_transactionally(ctx, model:, **)

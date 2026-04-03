@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CalendarDays, Plus, Calendar, Clock, ChevronLeft, Loader, Video, AlertTriangle } from 'lucide-react'
 import { api, extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function VendorShows() {
   const { theatreId, screenId } = useParams()
@@ -12,6 +14,7 @@ export default function VendorShows() {
   const [shows, setShows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
   
   useEffect(() => {
     async function fetchScreenAndShows() {
@@ -35,15 +38,22 @@ export default function VendorShows() {
   }, [theatreId, screenId])
   
   const handleCancelShow = async (showId) => {
-    if (!window.confirm('Are you sure you want to cancel this show? This cannot be undone.')) return
+    const confirmed = await confirm({
+      title: 'Cancel Show?',
+      message: 'This show will be cancelled and can no longer accept bookings.',
+      confirmText: 'Cancel Show',
+      tone: 'warning',
+    })
+    if (!confirmed) return
     
     try {
       await api.post(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows/${showId}/cancel`)
       // Refresh shows
       const showsRes = await api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows`)
       setShows(showsRes.data.shows || [])
+      showSuccessToast('Show cancelled successfully.')
     } catch (err) {
-      alert(extractApiError(err, 'Failed to cancel show'))
+      showApiErrorToast(err, 'Failed to cancel show')
     }
   }
 

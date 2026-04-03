@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clapperboard, Plus, Pencil, Trash2, X, Loader, Clock, Star } from 'lucide-react'
 import { api, extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function AdminMovies() {
   const [movies, setMovies] = useState([])
@@ -13,6 +15,7 @@ export default function AdminMovies() {
   const [formData, setFormData] = useState({ title: '', genre: '', rating: 'UA', description: '', director: '', running_time: '', release_date: '', format_ids: [], language_entries: [], cast_members: [] })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
 
   const fetchMovies = async () => {
     try {
@@ -73,9 +76,21 @@ export default function AdminMovies() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this movie?')) return
-    try { await api.delete(`/api/v1/movies/${id}`); fetchMovies() }
-    catch (err) { console.error(err) }
+    const confirmed = await confirm({
+      title: 'Delete Movie?',
+      message: 'This movie will be removed from the catalogue.',
+      confirmText: 'Delete Movie',
+      tone: 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await api.delete(`/api/v1/movies/${id}`)
+      showSuccessToast('Movie deleted successfully.')
+      fetchMovies()
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to delete movie')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

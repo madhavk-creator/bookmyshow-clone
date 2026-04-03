@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Pencil, Trash2, X, Loader } from 'lucide-react'
 import { api, extractApiError } from '../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../utils/toast'
+import { useConfirm } from './ConfirmProvider'
 
 export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon, fields, color = 'rose' }) {
   const [items, setItems] = useState([])
@@ -11,12 +13,16 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
   const [formData, setFormData] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
 
   const fetchItems = async () => {
     try {
       const { data } = await api.get(`/api/v1/${apiPath}`)
       setItems(Array.isArray(data) ? data : [])
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, `Failed to load ${entityName.toLowerCase()}`)
+    }
     finally { setLoading(false) }
   }
 
@@ -52,18 +58,33 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
       } else {
         await api.post(url, { [key]: formData })
       }
+      showSuccessToast(`${entityName.replace(/ies$/, 'y').replace(/s$/, '')} ${editing ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
       fetchItems()
-    } catch (err) { setError(extractApiError(err, 'Operation failed')) }
+    } catch (err) {
+      const message = extractApiError(err, 'Operation failed')
+      setError(message)
+      showApiErrorToast(err, 'Operation failed')
+    }
     finally { setSubmitting(false) }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm(`Delete this ${entityName.toLowerCase().replace(/s$/, '')}?`)) return
+    const confirmed = await confirm({
+      title: `Delete ${entityName.replace(/ies$/, 'y').replace(/s$/, '')}?`,
+      message: `This will permanently remove this ${entityName.toLowerCase().replace(/s$/, '')}.`,
+      confirmText: 'Delete',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     try {
       await api.delete(`/api/v1/${apiPath}/${id}`)
+      showSuccessToast(`${entityName.replace(/ies$/, 'y').replace(/s$/, '')} deleted successfully.`)
       fetchItems()
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Delete failed')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

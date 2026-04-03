@@ -10,6 +10,8 @@ module Reviews
         ctx[:errors] = { base: ['Review not found'] }
         return false
       end
+
+      true
     end
 
     def destroy(ctx, model:, **)

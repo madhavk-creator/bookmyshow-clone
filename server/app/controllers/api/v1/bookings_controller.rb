@@ -122,7 +122,8 @@ module Api
           show: {
             id:         booking.show.id,
             start_time: booking.show.start_time,
-            movie:      { id: booking.show.movie_id }
+            movie:      { id: booking.show.movie.id, title: booking.show.movie.title },
+            screen:     { id: booking.show.screen.id, name: booking.show.screen.name, theatre: { id: booking.show.screen.theatre.id, name: booking.show.screen.theatre.name, building_name: booking.show.screen.theatre.building_name, street_address: booking.show.screen.theatre.street_address } }
           },
           coupon: booking.coupon ? { code: booking.coupon.code } : nil,
           tickets_count: booking.tickets.size

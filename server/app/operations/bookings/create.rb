@@ -40,6 +40,8 @@ module Bookings
         ctx[:errors] = { show: ['This show has already started'] }
         return false
       end
+
+      true
     end
 
     def resolve_coupon(ctx, params:, current_user:, **)

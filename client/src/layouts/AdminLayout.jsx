@@ -15,6 +15,7 @@ const sidebarLinks = [
   { to: '/admin/formats',    icon: MonitorPlay,     label: 'Formats' },
   { to: '/admin/theatres',   icon: Building2,       label: 'Theatres' },
   { to: '/admin/register',   icon: UserPlus,        label: 'Add Admin' },
+  { to: '/admin/settings',   icon: Settings,        label: 'Settings' },
 ]
 
 export default function AdminLayout() {

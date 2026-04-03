@@ -15,6 +15,8 @@ module Bookings
         ctx[:errors] = { base: ['Booking not found'] }
         return false
       end
+
+      true
     end
 
     def validate_cancellable(ctx, model:, **)
@@ -22,6 +24,8 @@ module Bookings
         ctx[:errors] = { base: ["Only confirmed bookings can be cancelled (current: #{model.status})"] }
         return false
       end
+
+      true
     end
 
     def cancel_transactionally(ctx, model:, **)

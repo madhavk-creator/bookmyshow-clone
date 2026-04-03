@@ -29,7 +29,7 @@ module Shows
 
     def find_screen(ctx, params:, **)
       ctx[:screen] = Screen.find_by(id: params[:screen_id])
-      unless ctx[:screen]&.status_active?
+      unless ctx[:screen]&.active?
         ctx[:errors] = { screen: ['Screen not found or inactive'] }
         return false
       end

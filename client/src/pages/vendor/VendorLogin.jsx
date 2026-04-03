@@ -4,27 +4,27 @@ import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Mail, Lock, ArrowRight, Loader } from 'lucide-react'
 import { setCredentials } from '../../store/authSlice'
-import { api, extractApiError } from '../../utils/api'
+import { api } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 
 export default function VendorLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
 
     try {
       const { data } = await api.post('/api/v1/vendors/login', { email, password })
       dispatch(setCredentials({ token: data.token, user: data.user }))
+      showSuccessToast(`Welcome back, ${data.user?.name || 'partner'}.`)
       navigate('/vendor')
     } catch (err) {
-      setError(extractApiError(err, 'Invalid credentials'))
+      showApiErrorToast(err, 'Invalid credentials')
     } finally {
       setLoading(false)
     }
@@ -41,13 +41,6 @@ export default function VendorLogin() {
         <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">Welcome Back</h1>
         <p className="text-neutral-500 dark:text-neutral-400 mt-2">Sign in to manage your theatres and screens</p>
       </div>
-
-      {error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/50 text-red-500 text-sm text-center font-medium">
-          {error}
-        </motion.div>
-      )}
-
       <form onSubmit={handleLogin} className="space-y-6">
         <div className="space-y-2">
           <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Email</label>
