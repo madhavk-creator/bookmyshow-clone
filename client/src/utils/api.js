@@ -32,3 +32,11 @@ export function extractApiError(error, fallback = 'Something went wrong') {
 
   return data.error || error?.message || fallback
 }
+
+export function getVendors(config = {}) {
+  return api.get('/api/v1/vendors', config)
+}
+
+export function getVendorIncome(vendorId, config = {}) {
+  return api.get(`/api/v1/vendors/${vendorId}/income`, config)
+}

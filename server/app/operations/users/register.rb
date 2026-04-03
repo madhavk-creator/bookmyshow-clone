@@ -6,8 +6,6 @@ module Users
     step :persist
     fail :collect_errors
 
-    private
-
     def validate_params(ctx, params:, **)
       required = %w[name email password password_confirmation]
       missing  = required.select { |k| params[k].blank? }

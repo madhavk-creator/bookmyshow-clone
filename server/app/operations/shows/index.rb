@@ -2,8 +2,6 @@ module Shows
   class Index < Trailblazer::Operation
     step :load_shows
 
-    private
-
     def load_shows(ctx, current_user: nil, params: {}, **)
       scope = Pundit.policy_scope!(current_user, Show)
                     .includes(:movie, :movie_language, :movie_format,
@@ -33,7 +31,9 @@ module Shows
                      .where(theatres: { city_id: params[:city_id] })
       end
 
-      ctx[:records] = scope.order(:start_time)
+      records, pagination = Pagination.apply(scope.order(:start_time), params)
+      ctx[:records] = records
+      ctx[:pagination] = pagination
     end
   end
 end

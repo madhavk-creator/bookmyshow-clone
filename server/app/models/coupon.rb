@@ -17,6 +17,26 @@ class Coupon < ApplicationRecord
   validate :validity_window_order
   validate :discount_fields_match_type
 
+  scope :active, -> {
+    where('valid_from <= ? AND valid_until >= ?', Time.current, Time.current)
+  }
+
+  def applicable?(booking_amount)
+    Time.current.between?(valid_from, valid_until) &&
+      (minimum_booking_amount.nil? || booking_amount >= minimum_booking_amount) &&
+      (max_total_uses.nil? || user_coupon_usages.count < max_total_uses)
+  end
+
+  def apply(booking_amount)
+    return booking_amount unless applicable?(booking_amount)
+
+    if coupon_type_amount?
+      [booking_amount - discount_amount, 0].max
+    else
+      booking_amount * (1 - discount_percentage / 100.0)
+    end
+  end
+
   private
 
   def normalize_code

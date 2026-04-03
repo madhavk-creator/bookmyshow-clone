@@ -5,8 +5,6 @@ module SeatLayouts
     step :persist
     fail :collect_errors
 
-    private
-
     def find_screen(ctx, params:, **)
       ctx[:screen] = Screen.find_by(id: params[:screen_id])
       unless ctx[:screen]

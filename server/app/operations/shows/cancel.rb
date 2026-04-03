@@ -1,15 +1,13 @@
 module Shows
   # Transitions scheduled → cancelled.
   # Does NOT handle refunds — those are triggered separately.
-  # Resets any locked SHOW_SEAT_STATE rows for this shows.
+  # Resets any locked SHOW_SEAT_STATE rows for this show.
 
   class Cancel < Trailblazer::Operation
     step :find_show
     step :release_locks
     step :cancel_show
     fail :collect_errors
-
-    private
 
     def find_show(ctx, params:, **)
       ctx[:model] = ::Show.find_by(id: params[:id])
@@ -34,7 +32,7 @@ module Shows
     end
 
     def collect_errors(ctx, model: nil, **)
-      ctx[:errors] ||= { base: ['Could not cancel shows'] }
+      ctx[:errors] ||= { base: ['Could not cancel show'] }
     end
   end
 end

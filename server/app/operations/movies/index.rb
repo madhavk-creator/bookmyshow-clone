@@ -5,7 +5,7 @@ module Movies
     private
 
     def load_movies(ctx, current_user: nil, params: {}, **)
-      scope = Pundit.policy_scope!(current_user, Movie).includes(movie_formats: :formats, movie_languages: :language)
+      scope = Pundit.policy_scope!(current_user, Movie).includes(movie_formats: :format, movie_languages: :language)
       scope = scope.where('genre ILIKE ?', params[:genre]) if params[:genre].present?
       scope = scope.joins(:languages).where(languages: { code: params[:language].to_s.downcase }) if params[:language].present?
       scope = scope.joins(:formats).where(formats: { code: params[:format].to_s.downcase }) if params[:format].present?
@@ -17,7 +17,9 @@ module Movies
                      .distinct
       end
 
-      ctx[:records] = scope.order(:title)
+      records, pagination = Pagination.apply(scope.order(:title), params)
+      ctx[:records] = records
+      ctx[:pagination] = pagination
     end
   end
 end

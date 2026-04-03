@@ -9,10 +9,14 @@ module Theatres
       conditions[:city_id] = params[:city_id] if params[:city_id].present?
       conditions[:vendor_id] = params[:vendor_id] if params[:vendor_id].present?
 
-      ctx[:records] = Pundit.policy_scope!(current_user, Theatre)
-                           .includes(:city, :vendor)
-                           .where(conditions)
-                           .order(:name)
+      scope = Pundit.policy_scope!(current_user, Theatre)
+                    .includes(:city, :vendor)
+                    .where(conditions)
+                    .order(:name)
+
+      records, pagination = Pagination.apply(scope, params)
+      ctx[:records] = records
+      ctx[:pagination] = pagination
     end
   end
 end

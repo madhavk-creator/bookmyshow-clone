@@ -7,8 +7,6 @@ module Screens
     step :persist_changes
     fail :collect_errors
 
-    private
-
     def find_theatre(ctx, params:, **)
       ctx[:theatre] = Theatre.find_by(id: params[:theatre_id])
       unless ctx[:theatre]

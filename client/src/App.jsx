@@ -16,6 +16,8 @@ import VendorScreens from './pages/vendor/VendorScreens'
 import VendorSettings from './pages/vendor/VendorSettings'
 import SeatLayoutManager from './pages/vendor/SeatLayoutManager'
 import SeatLayoutEditor from './pages/vendor/SeatLayoutEditor'
+import VendorShows from './pages/vendor/VendorShows'
+import VendorShowEditor from './pages/vendor/VendorShowEditor'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMovies from './pages/admin/AdminMovies'
@@ -24,6 +26,9 @@ import AdminLanguages from './pages/admin/AdminLanguages'
 import AdminFormats from './pages/admin/AdminFormats'
 import AdminTheatres from './pages/admin/AdminTheatres'
 import AdminRegisterPage from './pages/admin/AdminRegister'
+import AdminScreens from './pages/admin/AdminScreens'
+import AdminSeatLayoutManager from './pages/admin/AdminSeatLayoutManager'
+import AdminSeatLayoutEditor from './pages/admin/AdminSeatLayoutEditor'
 
 function App() {
   return (
@@ -49,6 +54,9 @@ function App() {
           <Route path="screens" element={<VendorScreens />} />
           <Route path="layouts/:theatreId/:screenId" element={<SeatLayoutManager />} />
           <Route path="layouts/:theatreId/:screenId/:layoutId" element={<SeatLayoutEditor />} />
+          <Route path="shows/:theatreId/:screenId" element={<VendorShows />} />
+          <Route path="shows/:theatreId/:screenId/new" element={<VendorShowEditor />} />
+          <Route path="shows/:theatreId/:screenId/:showId/edit" element={<VendorShowEditor />} />
           <Route path="settings" element={<VendorSettings />} />
         </Route>
       </Route>
@@ -67,6 +75,9 @@ function App() {
           <Route path="languages" element={<AdminLanguages />} />
           <Route path="formats" element={<AdminFormats />} />
           <Route path="theatres" element={<AdminTheatres />} />
+          <Route path="theatres/:theatreId/screens" element={<AdminScreens />} />
+          <Route path="layouts/:theatreId/:screenId" element={<AdminSeatLayoutManager />} />
+          <Route path="layouts/:theatreId/:screenId/:layoutId" element={<AdminSeatLayoutEditor />} />
           <Route path="register" element={<AdminRegisterPage />} />
         </Route>
       </Route>

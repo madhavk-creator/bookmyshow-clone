@@ -1,4 +1,4 @@
-# lock / release       → called internally from booking operations, no direct policy needed
+# lock / release       → called internally from bookings operations, no direct policy needed
 
 class ShowSeatStatePolicy < ApplicationPolicy
   # The seat map endpoint is public — users need it before logging in to browse.

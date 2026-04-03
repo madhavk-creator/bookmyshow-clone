@@ -2,7 +2,7 @@
 #   1. Finds all ShowSeatState rows with status=locked and locked_until < now
 #   2. Groups them by lock_token to identify abandoned bookings
 #   3. Deletes the lock rows (seat becomes available again)
-#   4. Marks the associated pending booking as expired
+#   4. Marks the associated pending bookings as expired
 
 class ExpireSeatLocksJob < ApplicationJob
   queue_as :default

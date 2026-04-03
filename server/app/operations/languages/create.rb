@@ -4,8 +4,6 @@ module Languages
     step :persist
     fail :collect_errors
 
-    private
-
     def build(ctx, params:, **)
       ctx[:model] = ::Language.new(
         name: params[:name]&.strip&.titleize,

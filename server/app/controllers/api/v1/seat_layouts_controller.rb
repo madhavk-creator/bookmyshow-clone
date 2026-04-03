@@ -1,8 +1,8 @@
 module Api
   module V1
     class SeatLayoutsController < ApplicationController
-      before_action :authenticate!, except: %i[index shows]
-      before_action :authenticate_optional!, only: %i[index shows]
+      before_action :authenticate!, except: %i[index show]
+      before_action :authenticate_optional!, only: %i[index show]
       before_action :find_screen
 
       # GET /api/v1/theatres/:theatre_id/screens/:screen_id/seat_layouts

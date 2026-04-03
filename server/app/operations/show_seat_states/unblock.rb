@@ -5,8 +5,6 @@ module ShowSeatStates
     step :delete_state
     fail :collect_errors
 
-    private
-
     def find_state(ctx, params:, **)
       ctx[:model] = ShowSeatState.find_by(
         show_id: params[:show_id],

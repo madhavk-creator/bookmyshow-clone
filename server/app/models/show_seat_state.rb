@@ -2,12 +2,12 @@
 # No row = available. This keeps the table small and fast.
 #
 # Status transitions:
-#   (no row)  → locked   : users begins checkout (booking flow)
+#   (no row)  → locked   : users begins checkout (bookings flow)
 #   locked    → (no row) : lock expired or users abandoned (background job / release)
-#   locked    → booked   : payment confirmed (booking flow)
+#   locked    → booked   : payment confirmed (bookings flow)
 #   (no row)  → blocked  : admins manually holds a seat
 #   blocked   → (no row) : admins unblocks
-#   booked    → (no row) : ticket cancelled + refund completed (booking flow)
+#   booked    → (no row) : ticket cancelled + refund completed (bookings flow)
 
 class ShowSeatState < ApplicationRecord
   LOCK_DURATION = 5.minutes
@@ -40,7 +40,7 @@ class ShowSeatState < ApplicationRecord
   def seat_belongs_to_show_layout
     return if show.blank? || seat.blank?
     unless seat.seat_layout_id == show.seat_layout_id
-      errors.add(:seat, 'does not belong to this shows\'s layout')
+      errors.add(:seat, "does not belong to this show's layout")
     end
   end
 

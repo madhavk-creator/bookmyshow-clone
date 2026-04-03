@@ -1,3 +1,9 @@
+begin
+  require "sidekiq/web"
+rescue LoadError
+  # Sidekiq web UI is optional in environments where the web component is unavailable.
+end
+
 Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
@@ -17,15 +23,23 @@ Rails.application.routes.draw do
       end
 
       # ── Reference data ─────────────────────────────────────────────────────
-      resources :cities,    only: %i[index shows create update destroy]
-      resources :languages, only: %i[index shows create update destroy]
-      resources :formats,   only: %i[index shows create update destroy]
+      resources :vendors, only: %i[index] do
+        member do
+          get :income
+        end
+      end
+
+      resources :cities,    only: %i[index show create update destroy]
+      resources :languages, only: %i[index show create update destroy]
+      resources :formats,   only: %i[index show create update destroy]
 
       # ── Movies ─────────────────────────────────────────────────────────────
-      resources :movies, only: %i[index shows create update destroy]
+      resources :movies, only: %i[index show create update destroy] do
+        resources :reviews, only: %i[index show create update destroy]
+      end
 
       # ── Shows (top-level discovery) ────────────────────────────────────────
-      resources :shows, only: %i[index shows] do
+      resources :shows, only: %i[index show] do
         member do
           # Seat map + availability — primary data source for seat picker UI
           get 'seats', to: 'show_seats#availability'
@@ -35,11 +49,20 @@ Rails.application.routes.draw do
         end
       end
 
-      # ── Theatres → Screens → Seat Layouts + Shows ──────────────────────────
-      resources :theatres, only: %i[index shows create update destroy] do
-        resources :screens, only: %i[index shows create update destroy] do
+      # ── Bookings ───────────────────────────────────────────────────────────
+      resources :bookings, only: %i[index show create] do
+        member do
+          post 'confirm_payment'
+          post 'cancel'
+          post 'tickets/:ticket_id/cancel', action: :cancel_ticket, as: :cancel_ticket
+        end
+      end
 
-          resources :seat_layouts, only: %i[index shows create update] do
+      # ── Theatres → Screens → Seat Layouts + Shows ──────────────────────────
+      resources :theatres, only: %i[index show create update destroy] do
+        resources :screens, only: %i[index show create update destroy] do
+
+          resources :seat_layouts, only: %i[index show create update] do
             member do
               post :publish
               post :archive
@@ -48,7 +71,7 @@ Rails.application.routes.draw do
             end
           end
 
-          resources :shows, only: %i[index shows create update] do
+          resources :shows, only: %i[index show create update] do
             member do
               post :cancel
             end
@@ -57,6 +80,12 @@ Rails.application.routes.draw do
         end
       end
 
+    end
+    # ── Sidekiq dashboard (admin only) ─────────────────────────────────────────
+    authenticate :user, ->(u) { u.admin? } do
+      next unless defined?(Sidekiq::Web)
+
+      mount Sidekiq::Web => '/sidekiq'
     end
   end
 end

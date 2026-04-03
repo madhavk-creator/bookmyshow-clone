@@ -5,8 +5,6 @@ module Cities
     step :persist
     fail :collect_errors
 
-    private
-
     def find_city(ctx, params:, **)
       ctx[:model] = ::City.find_by(id: params[:id])
       unless ctx[:model]

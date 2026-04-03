@@ -3,7 +3,7 @@ class TheatrePolicy < ApplicationPolicy
   def show?   = true
 
   def create?
-    current_user.present?
+    current_user&.admin? || current_user&.vendor?
   end
 
   def update?

@@ -12,8 +12,6 @@ module SeatLayouts
     step :publish
     fail :collect_errors
 
-    private
-
     def find_layout(ctx, params:, **)
       ctx[:model] = ::SeatLayout.find_by(id: params[:id])
       unless ctx[:model]

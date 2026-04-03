@@ -1,7 +1,7 @@
 module Shows
-  # Only start_time and section prices can be updated on a scheduled shows.
+  # Only start_time and section prices can be updated on a scheduled show.
   # Changing start_time re-validates overlap.
-  # layout, movies, languages, and formats are immutable after creation.
+  # layout, movie, language, and format are immutable after creation.
 
   class Update < Trailblazer::Operation
     step :find_show
@@ -10,8 +10,6 @@ module Shows
     step :assign_attributes
     step :persist_changes
     fail :collect_errors
-
-    private
 
     def find_show(ctx, params:, **)
       ctx[:model] = ::Show.find_by(id: params[:id])
@@ -43,7 +41,7 @@ module Shows
                       .exists?
 
       if overlap
-        ctx[:errors] = { start_time: ['This screens already has a shows scheduled during this time'] }
+        ctx[:errors] = { start_time: ['This screen already has a show scheduled during this time'] }
         return false
       end
 

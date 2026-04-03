@@ -3,8 +3,6 @@ module ShowSeatStates
     step :release_locks
     fail :collect_errors
 
-    private
-
     def release_locks(ctx, params:, **)
       deleted = ShowSeatState.where(
         lock_token: params[:lock_token],

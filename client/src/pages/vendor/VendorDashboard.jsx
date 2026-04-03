@@ -3,34 +3,81 @@ import { motion } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Building2, Monitor, Ticket, TrendingUp } from 'lucide-react'
 import { selectCurrentUser } from '../../store/authSlice'
-import { api } from '../../utils/api'
+import { api, getVendorIncome } from '../../utils/api'
 
 export default function VendorDashboard() {
   const user = useSelector(selectCurrentUser)
   const [theatres, setTheatres] = useState([])
+  const [income, setIncome] = useState({
+    theatres_count: 0,
+    completed_bookings_count: 0,
+    tickets_sold_count: 0,
+    gross_income: 0,
+    refund_amount: 0,
+    total_income: 0,
+  })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchTheatres() {
+    async function fetchDashboard() {
+      setLoading(true)
+
       try {
-        const { data } = await api.get(`/api/v1/theatres?vendor_id=${user?.id}`)
-        setTheatres(Array.isArray(data) ? data : [])
-      } catch (err) {
-        console.error(err)
+        const [theatresResult, incomeResult] = await Promise.allSettled([
+          api.get(`/api/v1/theatres?vendor_id=${user?.id}`),
+          getVendorIncome(user.id),
+        ])
+
+        if (theatresResult.status === 'fulfilled') {
+          const { data } = theatresResult.value
+          setTheatres(Array.isArray(data) ? data : (data.theatres || []))
+        } else {
+          console.error(theatresResult.reason)
+          setTheatres([])
+        }
+
+        if (incomeResult.status === 'fulfilled') {
+          setIncome({
+            theatres_count: incomeResult.value.data?.theatres_count ?? 0,
+            completed_bookings_count: incomeResult.value.data?.completed_bookings_count ?? 0,
+            tickets_sold_count: incomeResult.value.data?.tickets_sold_count ?? 0,
+            gross_income: incomeResult.value.data?.gross_income ?? 0,
+            refund_amount: incomeResult.value.data?.refund_amount ?? 0,
+            total_income: incomeResult.value.data?.total_income ?? 0,
+          })
+        } else {
+          console.error(incomeResult.reason)
+          setIncome({
+            theatres_count: 0,
+            completed_bookings_count: 0,
+            tickets_sold_count: 0,
+            gross_income: 0,
+            refund_amount: 0,
+            total_income: 0,
+          })
+        }
       } finally {
         setLoading(false)
       }
     }
-    if (user?.id) fetchTheatres()
+
+    if (user?.id) fetchDashboard()
   }, [user?.id])
 
-  const totalScreens = theatres.reduce((sum) => sum, 0) // placeholder
+  const formatCurrency = (value) => {
+    const amount = Number(value || 0)
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(amount)
+  }
 
   const stats = [
     { label: 'Total Theatres', value: theatres.length, icon: Building2, color: 'amber' },
-    { label: 'Active Screens', value: '—', icon: Monitor, color: 'blue' },
-    { label: 'Total Bookings', value: '—', icon: Ticket, color: 'green' },
-    { label: 'Revenue', value: '—', icon: TrendingUp, color: 'purple' },
+    { label: 'Tickets Sold', value: income?.tickets_sold_count ?? 0, icon: Monitor, color: 'blue' },
+    { label: 'Confirmed Bookings', value: income?.completed_bookings_count ?? 0, icon: Ticket, color: 'green' },
+    { label: 'Net Revenue', value: formatCurrency(income?.total_income), icon: TrendingUp, color: 'purple' },
   ]
 
   const colorMap = {
@@ -71,6 +118,36 @@ export default function VendorDashboard() {
             </div>
           </motion.div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <div className="glass-card p-6 hover:translate-y-0">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">Gross Ticket Sales</p>
+          <p className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">
+            {loading ? <span className="inline-block w-24 h-8 rounded bg-neutral-200 dark:bg-neutral-800 animate-pulse" /> : formatCurrency(income?.gross_income)}
+          </p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">All completed ticket payments across your theatres.</p>
+        </div>
+
+        <div className="glass-card p-6 hover:translate-y-0">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">Refunded Amount</p>
+          <p className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">
+            {loading ? <span className="inline-block w-24 h-8 rounded bg-neutral-200 dark:bg-neutral-800 animate-pulse" /> : formatCurrency(income?.refund_amount)}
+          </p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">Completed refunds deducted from your total income.</p>
+        </div>
+
+        <div className="glass-card p-6 hover:translate-y-0">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">Revenue per Theatre</p>
+          <p className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">
+            {loading ? (
+              <span className="inline-block w-24 h-8 rounded bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+            ) : (
+              formatCurrency(theatres.length ? Number(income?.total_income || 0) / theatres.length : 0)
+            )}
+          </p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">Average net income across your active theatre portfolio.</p>
+        </div>
       </div>
 
       {/* Recent Theatres */}

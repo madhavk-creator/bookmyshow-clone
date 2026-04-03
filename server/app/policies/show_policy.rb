@@ -1,5 +1,5 @@
 # index / shows  → public
-# create        → vendors who owns the screens's theatres, or admins
+# create        → vendors who own the screen's theatre, or admins
 # update        → same, and only on scheduled shows
 # cancel        → same as update
 

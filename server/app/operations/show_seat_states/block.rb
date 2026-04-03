@@ -6,8 +6,6 @@ module ShowSeatStates
     step :create_block
     fail :collect_errors
 
-    private
-
     def find_show(ctx, params:, **)
       ctx[:show] = Show.find_by(id: params[:show_id])
       unless ctx[:show]
@@ -19,7 +17,7 @@ module ShowSeatStates
     def find_seat(ctx, params:, show:, **)
       ctx[:seat] = Seat.find_by(id: params[:seat_id], seat_layout_id: show.seat_layout_id)
       unless ctx[:seat]&.is_active?
-        ctx[:errors] = { seat: ['Seat not found or inactive for this shows'] }
+        ctx[:errors] = { seat: ['Seat not found or inactive for this show'] }
         return false
       end
     end

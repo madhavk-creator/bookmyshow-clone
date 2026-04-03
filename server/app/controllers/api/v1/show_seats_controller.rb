@@ -6,7 +6,7 @@
 #   DELETE /api/v1/shows/:show_id/seats/:seat_id/block   — admins unblock
 #
 # The seat map response is the primary data source for the seat picker UI.
-# It returns every seat in the shows's layout with its current status joined,
+# It returns every seat in the show's layout with its current status joined,
 # grouped by section, plus a top-level availability summary.
 
 module Api
@@ -16,37 +16,13 @@ module Api
       before_action :find_show
 
       # GET /api/v1/shows/:show_id/seats
-      # Public.
-      #
-      # Response shape:
-      # {
-      #   show_id: uuid,
-      #   total_capacity: 240,
-      #   available_count: 187,
-      #   locked_count: 3,
-      #   booked_count: 48,
-      #   blocked_count: 2,
-      #   inactive_count: 1,
-      #   sections: [
-      #     {
-      #       id: uuid, code: "premium", name: "Premium",
-      #       color_hex: "#FFD700", rank: 0, base_price: "450.00",
-      #       seats: [
-      #         { id: uuid, label: "A1", grid_row: 0, grid_column: 0,
-      #           x_span: 1, y_span: 1, seat_kind: "standard",
-      #           is_accessible: false, status: "available" },
-      #         ...
-      #       ]
-      #     }
-      #   ]
-      # }
       def availability
         @show.release_expired_locks!
 
         layout   = @show.seat_layout
         sections = layout.seat_sections.order(:rank).includes(:seats, :show_section_prices)
 
-        # Single query for all non-available seat states for this shows
+        # Single query for all non-available seat states for this show
         state_by_seat_id = ShowSeatState
                              .where(show_id: @show.id)
                              .index_by(&:seat_id)

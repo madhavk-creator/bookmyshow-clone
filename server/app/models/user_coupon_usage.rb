@@ -9,6 +9,8 @@ class UserCouponUsage < ApplicationRecord
   validate :booking_matches_user
   validate :booking_matches_coupon
 
+  validates :coupon_id, :user_id, :booking_id, :used_at, presence: true
+
   private
 
   def assign_used_at
@@ -19,13 +21,13 @@ class UserCouponUsage < ApplicationRecord
     return if booking.blank? || user.blank?
     return if booking.user_id == user_id
 
-    errors.add(:user, "must match the booking users")
+    errors.add(:user, "must match the booking's user")
   end
 
   def booking_matches_coupon
     return if booking.blank? || coupon.blank?
     return if booking.coupon_id == coupon_id
 
-    errors.add(:coupon, "must match the booking coupon")
+    errors.add(:coupon, "must match the booking's coupon")
   end
 end

@@ -1,16 +1,16 @@
-# Handles cities resolution inline:
+# Handles city resolution inline:
 #   - If city_id is provided, use it directly.
-#   - If cities name + state are provided, find-or-create the cities.
-# This lets vendors register a theatres in a new cities without a separate API call.
+#   - If city name + state are provided, find-or-create the city.
+# This lets vendors register their own theatre, while admins can create one
+# on behalf of an existing vendor, without a separate city-management call.
 
 module Theatres
   class Create < Trailblazer::Operation
     step :resolve_city
+    step :resolve_vendor
     step :build_theatre
     step :persist
     fail :collect_errors
-
-    private
 
     def resolve_city(ctx, params:, current_user:, **)
       if params[:city_id].present?
@@ -36,9 +36,24 @@ module Theatres
       true
     end
 
-    def build_theatre(ctx, params:, current_user:, **)
+    def resolve_vendor(ctx, params:, current_user:, **)
+      if current_user.vendor?
+        ctx[:vendor] = current_user
+        return true
+      end
+
+      vendor = User.find_by(id: params[:vendor_id])
+      unless vendor&.vendor?
+        ctx[:errors] = { vendor_id: ['Vendor not found or is not a vendor account'] }
+        return false
+      end
+
+      ctx[:vendor] = vendor
+    end
+
+    def build_theatre(ctx, params:, vendor:, **)
       ctx[:model] = Theatre.new(
-        vendor_id:      current_user.id,
+        vendor:         vendor,
         city:           ctx[:city],
         name:           params[:name],
         building_name:  params[:building_name],

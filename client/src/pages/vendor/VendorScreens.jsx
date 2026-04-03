@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector } from 'react-redux'
-import { Monitor, Plus, Pencil, Trash2, X, Loader, Building2, ChevronDown, Layers } from 'lucide-react'
+import { Monitor, Plus, Pencil, Trash2, X, Loader, Building2, ChevronDown, Layers, CalendarDays } from 'lucide-react'
 import { selectCurrentUser } from '../../store/authSlice'
 import { api, extractApiError } from '../../utils/api'
 
@@ -28,7 +28,7 @@ export default function VendorScreens() {
           api.get(`/api/v1/theatres?vendor_id=${user?.id}`),
           api.get('/api/v1/formats'),
         ])
-        const t = Array.isArray(theatreRes) ? theatreRes : []
+        const t = Array.isArray(theatreRes) ? theatreRes : (theatreRes.theatres || [])
         setTheatres(t)
         setFormats(Array.isArray(formatRes) ? formatRes : [])
         if (t.length > 0) setSelectedTheatre(t[0])
@@ -215,12 +215,20 @@ export default function VendorScreens() {
                     ))}
                   </div>
                 )}
-                <button
-                  onClick={() => navigate(`/vendor/layouts/${selectedTheatre.id}/${screen.id}`)}
-                  className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition-colors cursor-pointer"
-                >
-                  <Layers className="w-4 h-4" /> Manage Layouts
-                </button>
+                <div className="mt-4 flex flex-col gap-2">
+                  <button
+                    onClick={() => navigate(`/vendor/layouts/${selectedTheatre.id}/${screen.id}`)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition-colors cursor-pointer"
+                  >
+                    <Layers className="w-4 h-4" /> Manage Layouts
+                  </button>
+                  <button
+                    onClick={() => navigate(`/vendor/shows/${selectedTheatre.id}/${screen.id}`)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 transition-colors cursor-pointer"
+                  >
+                    <CalendarDays className="w-4 h-4" /> Manage Shows
+                  </button>
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>

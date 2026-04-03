@@ -5,8 +5,6 @@ module ShowSeatStates
     step :acquire_locks
     fail :collect_errors
 
-    private
-
     def find_show(ctx, params:, **)
       ctx[:show] = Show.find_by(id: params[:show_id])
       unless ctx[:show]&.status_scheduled?
@@ -23,7 +21,7 @@ module ShowSeatStates
         return false
       end
 
-      # All seats must belong to the shows's layout and be active
+      # All seats must belong to the show's layout and be active
       valid_seats = Seat.where(
         id:             seat_ids,
         seat_layout_id: show.seat_layout_id,
@@ -31,7 +29,7 @@ module ShowSeatStates
       )
 
       if valid_seats.count != seat_ids.count
-        ctx[:errors] = { seat_ids: ['One or more seats are invalid for this shows'] }
+        ctx[:errors] = { seat_ids: ['One or more seats are invalid for this show'] }
         return false
       end
 

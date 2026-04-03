@@ -4,8 +4,6 @@ module Cities
     step :persist
     fail :collect_errors
 
-    private
-
     def build_city(ctx, params:, **)
       ctx[:model] = ::City.new(
         name:  params[:name]&.strip&.titleize,

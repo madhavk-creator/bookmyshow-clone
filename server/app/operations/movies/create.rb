@@ -7,8 +7,6 @@ module Movies
     step :persist_changes
     fail :collect_errors
 
-    private
-
     def build_movie(ctx, params:, **)
       ctx[:model] = ::Movie.new(
         title:        params[:title],

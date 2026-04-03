@@ -9,9 +9,17 @@ module Api
         result = run(
           Theatres::Index,
           current_user: current_user,
-          params: { city_id: params[:city_id], vendor_id: params[:vendor_id] }
+          params: {
+            city_id: params[:city_id],
+            vendor_id: params[:vendor_id],
+            page: params[:page],
+            per_page: params[:per_page]
+          }
         ) do |operation_result|
-          return render json: serialize_many(operation_result[:records])
+          return render json: {
+            theatres: serialize_many(operation_result[:records]),
+            pagination: operation_result[:pagination]
+          }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -73,7 +81,7 @@ module Api
       def theatre_params
         params.require(:theatre).permit(
           :name, :building_name, :street_address, :pincode,
-          :city_id, :city_name, :city_state
+          :city_id, :city_name, :city_state, :vendor_id
         )
       end
 

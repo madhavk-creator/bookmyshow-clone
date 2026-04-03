@@ -4,8 +4,6 @@ module Screens
     step :destroy
     fail :collect_errors
 
-    private
-
     def find_screen(ctx, params:, **)
       ctx[:model] = ::Screen.find_by(id: params[:id])
       unless ctx[:model]

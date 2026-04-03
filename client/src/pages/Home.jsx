@@ -16,7 +16,7 @@ export default function Home() {
           api.get('/api/v1/movies'),
           api.get('/api/v1/cities'),
         ])
-        const moviesArray = Array.isArray(movieRes) ? movieRes : []
+        const moviesArray = Array.isArray(movieRes) ? movieRes : (movieRes.movies || [])
         const citiesArray = Array.isArray(cityRes) ? cityRes : []
         setMovies(moviesArray)
         setCities(citiesArray)

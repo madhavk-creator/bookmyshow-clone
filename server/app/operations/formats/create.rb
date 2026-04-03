@@ -4,8 +4,6 @@ module Formats
     step :persist
     fail :collect_errors
 
-    private
-
     def build(ctx, params:, **)
       ctx[:model] = ::Format.new(
         name: params[:name]&.strip&.upcase,

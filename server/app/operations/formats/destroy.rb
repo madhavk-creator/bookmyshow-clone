@@ -3,8 +3,6 @@ module Formats
     step :destroy
     fail :collect_errors
 
-    private
-
     def destroy(ctx, model:, **)
       model.destroy
     end

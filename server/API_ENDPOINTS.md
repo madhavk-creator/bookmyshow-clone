@@ -12,6 +12,40 @@
 # All endpoints accept:  { user: { name:, email:, password:, password_confirmation:, phone } }
 # All endpoints return:  { token:, user: { id:, name:, email:, role: } }
 #
+#  Pagination
+#   Supported on: movies, theatres, shows, reviews, bookings
+#   Query params:
+#     ?page=1
+#     ?per_page=20
+#   Defaults:
+#     page=1
+#     per_page=20
+#   Max:
+#     per_page=50
+#   Response metadata:
+#     "pagination": {
+#       "page": 1,
+#       "per_page": 20,
+#       "total_count": 134,
+#       "total_pages": 7
+#     }
+#
+#  Cities
+#  Vendors
+#   GET    /api/v1/vendors              public
+#   GET    /api/v1/vendors/:id/income   vendor (self) or admin
+#
+#  Income response:
+#   {
+#     "vendor": { "id": "uuid", "name": "Acme Cinemas", "email": "owner@example.com" },
+#     "theatres_count": 3,
+#     "completed_bookings_count": 124,
+#     "tickets_sold_count": 812,
+#     "gross_income": "154000.00",
+#     "refund_amount": "6500.00",
+#     "total_income": "147500.00"
+#   }
+#
 #  Cities
 #   GET    /api/v1/cities              public — ?state=Maharashtra
 #   GET    /api/v1/cities/:id          public
@@ -20,11 +54,41 @@
 #   DELETE /api/v1/cities/:id          admin only
 #
 #  Theatres
-#   GET    /api/v1/theatres            public — ?city_id= ?vendor_id=
+#   GET    /api/v1/theatres            public — ?city_id= ?vendor_id= ?page= ?per_page=
 #   GET    /api/v1/theatres/:id        public
 #   POST   /api/v1/theatres            vendor or admin
 #   PATCH  /api/v1/theatres/:id        owning vendor or admin
 #   DELETE /api/v1/theatres/:id        owning vendor or admin
+#
+#  Create payload:
+#   Vendor creating own theatre:
+#   {
+#     "theatre": {
+#       "name": "PVR Phoenix",
+#       "building_name": "Phoenix Mall",
+#       "street_address": "Lower Parel",
+#       "pincode": "400013",
+#       "city_id": "uuid"
+#     }
+#   }
+#
+#   Admin creating on behalf of vendor:
+#   {
+#     "theatre": {
+#       "vendor_id": "vendor-user-uuid",
+#       "name": "PVR Phoenix",
+#       "building_name": "Phoenix Mall",
+#       "street_address": "Lower Parel",
+#       "pincode": "400013",
+#       "city_id": "uuid"
+#     }
+#   }
+#
+#  Index response:
+#   {
+#     "theatres": [ ... ],
+#     "pagination": { "page": 1, "per_page": 20, "total_count": 42, "total_pages": 3 }
+#   }
 
 #
 #  Screens (nested under theatres)
@@ -74,6 +138,8 @@
 #   ?language= — filter by language code (e.g. hi, en, ta)
 #   ?format=   — filter by format code (e.g. 2d, imax)
 #   ?city_id=  — only movies with at least one scheduled show in that city
+#   ?page=     — page number
+#   ?per_page= — page size (max 50)
 #
 #  Movies
 #   GET    /api/v1/movies                  public
@@ -81,10 +147,18 @@
 #                                          ?language=hi
 #                                          ?format=imax
 #                                          ?city_id=uuid
+#                                          ?page=1
+#                                          ?per_page=20
 #   GET    /api/v1/movies/:id              public — full detail + cast
 #   POST   /api/v1/movies                  admin only
 #   PATCH  /api/v1/movies/:id              admin only
 #   DELETE /api/v1/movies/:id              admin only
+#
+#  Index response:
+#   {
+#     "movies": [ ... ],
+#     "pagination": { "page": 1, "per_page": 20, "total_count": 64, "total_pages": 4 }
+#   }
 
 #  Languages
 #   GET    /api/v1/languages               public
@@ -150,7 +224,9 @@
 #                                              ?movie_id= ?date=YYYY-MM-DD
 #                                              ?language=hi ?format=imax
 #                                              ?city_id=uuid ?status=scheduled
+#                                              ?page=1 ?per_page=20
 #  GET    /api/v1/shows/:id                    public — detail + section prices
+#                                              top-level route stays global
 #  GET    /api/v1/shows/:show_id/seats         public — full seat map grouped by section,
 #                                                       per-seat status, and section pricing
 #  POST   /api/v1/shows/:show_id/seats/:seat_id/block
@@ -160,7 +236,7 @@
 #  GET    /api/v1/theatres/:theatre_id/screens/:screen_id/shows
 #                                              public — same filters, scoped to a screen
 #  GET    /api/v1/theatres/:theatre_id/screens/:screen_id/shows/:id
-#                                              public
+#                                              public — nested route enforces theatre + screen chain
 #  POST   /api/v1/theatres/:theatre_id/screens/:screen_id/shows
 #                                              vendor (own screen) or admin
 #  PATCH  /api/v1/theatres/:theatre_id/screens/:screen_id/shows/:id
@@ -181,6 +257,12 @@
 #         { "seat_section_id": "uuid", "base_price": "450.00" }
 #       ]
 #     }
+#   }
+#
+#  Index response:
+#   {
+#     "shows": [ ... ],
+#     "pagination": { "page": 1, "per_page": 20, "total_count": 128, "total_pages": 7 }
 #   }
 #
 #  Seat map response:
@@ -241,3 +323,54 @@
 #
 #  ShowSeatState::Lock    — called by Booking::Create to lock selected seats
 #  ShowSeatState::Release — called by Booking::Abandon or lock-expiry cleanup
+
+# ── Booking endpoint reference ────────────────────────────────────────────────
+#
+#  GET    /api/v1/bookings                              user's own bookings ?page= ?per_page=
+#  GET    /api/v1/bookings/:id                          booking detail + tickets
+#  POST   /api/v1/bookings                              create booking + lock seats
+#  POST   /api/v1/bookings/:id/confirm_payment          simulate payment → confirmed
+#  POST   /api/v1/bookings/:id/cancel                   cancel full booking
+#  POST   /api/v1/bookings/:id/tickets/:ticket_id/cancel cancel single ticket
+#
+#  Create payload:
+#   {
+#     "booking": {
+#       "show_id": "uuid",
+#       "seat_ids": ["uuid", "uuid"],
+#       "coupon_code": "SUMMER20"
+#     }
+#   }
+#
+#  Index response:
+#   {
+#     "bookings": [ ... ],
+#     "pagination": { "page": 1, "per_page": 20, "total_count": 11, "total_pages": 1 }
+#   }
+
+# ── Review endpoint reference ─────────────────────────────────────────────────
+#
+#  Base: /api/v1/movies/:movie_id/reviews
+#
+#  GET    /          index   — all reviews + average rating + total count ?page= ?per_page=
+#  GET    /:id       show    — single review
+#  POST   /          create  — authenticated + must have watched the movie
+#  PATCH  /:id       update  — own review only (rating + description)
+#  DELETE /:id       destroy — own review or admin
+#
+#  Create/update payload:
+#   {
+#     "review": {
+#       "rating": 4.5,
+#       "description": "Visually stunning..."
+#     }
+#   }
+#
+#  Index response:
+#   {
+#     "movie_id": "uuid",
+#     "average_rating": 4.2,
+#     "total_reviews": 37,
+#     "reviews": [ ... ],
+#     "pagination": { "page": 1, "per_page": 20, "total_count": 37, "total_pages": 2 }
+#   }

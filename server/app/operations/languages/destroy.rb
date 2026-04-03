@@ -3,17 +3,15 @@ module Languages
     step :destroy
     fail :collect_errors
 
-    private
-
     def destroy(ctx, model:, **)
       model.destroy
     rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: ['Cannot delete a languages that is in use by movies'] }
+      ctx[:errors] = { base: ['Cannot delete a language that is in use by movies'] }
       false
     end
 
     def collect_errors(ctx, **)
-      ctx[:errors] ||= { base: ['Could not delete languages'] }
+      ctx[:errors] ||= { base: ['Could not delete language'] }
     end
   end
 end

@@ -13,10 +13,15 @@ module Api
             genre: params[:genre],
             language: params[:language],
             format: params[:format],
-            city_id: params[:city_id]
+            city_id: params[:city_id],
+            page: params[:page],
+            per_page: params[:per_page]
           }
         ) do |operation_result|
-          return render json: operation_result[:records].map { |movie| serialize(movie) }
+          return render json: {
+            movies: operation_result[:records].map { |movie| serialize(movie) },
+            pagination: operation_result[:pagination]
+          }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -34,7 +39,7 @@ module Api
       # POST /api/v1/movies
       # Admin only.
       def create
-        authorize Movies
+        authorize Movie
 
         result = run(Movies::Create, params: movie_params.to_h.deep_symbolize_keys) do |operation_result|
           return render json: serialize(operation_result[:model]), status: :created

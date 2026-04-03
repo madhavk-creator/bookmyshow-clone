@@ -19,7 +19,7 @@ export default function VendorTheatres() {
   const fetchTheatres = async () => {
     try {
       const { data } = await api.get(`/api/v1/theatres?vendor_id=${user?.id}`)
-      setTheatres(Array.isArray(data) ? data : [])
+      setTheatres(Array.isArray(data) ? data : (data.theatres || []))
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }

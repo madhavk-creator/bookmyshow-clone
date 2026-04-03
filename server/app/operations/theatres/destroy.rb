@@ -4,8 +4,6 @@ module Theatres
     step :destroy
     fail :collect_errors
 
-    private
-
     def find_theatre(ctx, params:, **)
       ctx[:model] = Theatre.find_by(id: params[:id])
       unless ctx[:model]

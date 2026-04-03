@@ -154,9 +154,30 @@ export default function SeatLayoutEditor() {
     try {
       const payload = sections.map(({ id, ...rest }) => rest)
       const { data } = await api.put(`${base}/sections`, { sections: payload })
-      // Update with server response
-      setSections(data.sections || [])
-      if (data.sections?.length > 0) setSelectedSection(data.sections[0].id)
+      
+      const serverSections = data.sections || []
+      setSections(serverSections)
+      
+      // Critical Fix: Backend clears and regenerates section records.
+      // Update our painted seats to use the new server-assigned UUIDs based on the unique code.
+      setSeats(prevSeats => prevSeats.map(seat => {
+        const oldSection = sections.find(s => s.id === seat.seat_section_id)
+        if (!oldSection) return seat
+        const newSection = serverSections.find(s => s.code === oldSection.code)
+        if (newSection) return { ...seat, seat_section_id: newSection.id }
+        return seat
+      }))
+
+      if (selectedSection) {
+        const oldSec = sections.find(s => s.id === selectedSection)
+        if (oldSec) {
+          const newSec = serverSections.find(s => s.code === oldSec.code)
+          if (newSec) setSelectedSection(newSec.id)
+          else if (serverSections.length > 0) setSelectedSection(serverSections[0].id)
+        }
+      } else if (serverSections.length > 0) {
+        setSelectedSection(serverSections[0].id)
+      }
     } catch (err) { alert(extractApiError(err, 'Save failed')) }
     finally { setSaving(false) }
   }

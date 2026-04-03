@@ -13,7 +13,7 @@ class ShowSectionPrice < ApplicationRecord
   def section_belongs_to_show_layout
     return if show.blank? || seat_section.blank?
     unless seat_section.seat_layout_id == show.seat_layout_id
-      errors.add(:seat_section, 'does not belong to this shows\'s layout')
+      errors.add(:seat_section, "does not belong to this show's layout")
     end
   end
 end

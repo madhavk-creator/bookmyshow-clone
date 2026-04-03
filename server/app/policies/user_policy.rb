@@ -25,6 +25,10 @@ class UserPolicy < ApplicationPolicy
     current_user.admin?
   end
 
+  def income?
+    own_record? || current_user.admin?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       if current_user.admin?

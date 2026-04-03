@@ -17,7 +17,7 @@ export default function AdminMovies() {
   const fetchMovies = async () => {
     try {
       const { data } = await api.get('/api/v1/movies')
-      setMovies(Array.isArray(data) ? data : [])
+      setMovies(Array.isArray(data) ? data : (data.movies || []))
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }

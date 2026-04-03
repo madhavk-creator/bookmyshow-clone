@@ -7,7 +7,6 @@ module Movies
     step :persist_changes
     fail :collect_errors
 
-    private
     def assign_attributes(ctx, params:, model:, **)
       allowed = %i[title genre rating description director running_time release_date]
       model.assign_attributes(params.slice(*allowed).compact)

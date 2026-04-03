@@ -27,8 +27,6 @@ module Shows
     step :persist_show_with_prices
     fail :collect_errors
 
-    private
-
     def find_screen(ctx, params:, **)
       ctx[:screen] = Screen.find_by(id: params[:screen_id])
       unless ctx[:screen]&.status_active?
@@ -91,7 +89,7 @@ module Shows
     true
     end
 
-    # The screens must have a capability matching the movies's chosen formats.
+    # The screen must have a capability matching the movie's chosen format.
     def validate_format_capability(ctx, screen:, movie_format:, **)
       supported = screen.screen_capabilities
                         .exists?(format_id: movie_format.format_id)
@@ -122,7 +120,7 @@ module Shows
                       .exists?
 
       if overlap
-        ctx[:errors] = { start_time: ['This screens already has a shows scheduled during this time'] }
+        ctx[:errors] = { start_time: ['This screen already has a show scheduled during this time'] }
         return false
       end
 

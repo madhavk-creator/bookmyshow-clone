@@ -4,8 +4,6 @@ module Languages
     step :persist
     fail :collect_errors
 
-    private
-
     def assign(ctx, params:, model:, **)
       model.name = params[:name].strip.titleize if params[:name].present?
       model.code = params[:code].strip.downcase if params[:code].present?

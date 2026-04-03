@@ -20,10 +20,15 @@ module Api
             date: params[:date],
             language: params[:language],
             format: params[:format],
-            city_id: params[:city_id]
+            city_id: params[:city_id],
+            page: params[:page],
+            per_page: params[:per_page]
           }
         ) do |operation_result|
-          return render json: operation_result[:records].map { |show_record| serialize(show_record) }
+          return render json: {
+            shows: operation_result[:records].map { |show_record| serialize(show_record) },
+            pagination: operation_result[:pagination]
+          }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -40,21 +45,6 @@ module Api
       end
 
       # POST /api/v1/theatres/:theatre_id/screens/:screen_id/shows
-      # Vendor (own screens) or Admin.
-      #
-      # Payload:
-      #   {
-      #     "shows": {
-      #       "movie_id": "uuid",
-      #       "seat_layout_id": "uuid",
-      #       "movie_language_id": "uuid",
-      #       "movie_format_id": "uuid",
-      #       "start_time": "2026-04-01T18:30:00+05:30",
-      #       "section_prices": [
-      #         { "seat_section_id": "uuid", "base_price": "250.00" }
-      #       ]
-      #     }
-      #   }
       def create
         authorize Show.new(screen: @screen)
 
@@ -113,15 +103,24 @@ module Api
       end
 
       # Works from both top-level and nested routes.
-      # When nested, scopes to the screens for an extra safety check.
+      # Top-level routes stay global for discovery.
+      # Nested routes enforce the provided theatre/screen chain.
       def find_show_globally
-        scope = params[:screen_id].present? ? Show.where(screen_id: params[:screen_id]) : Show.all
+        scope = Show.all
+
+        if params[:screen_id].present?
+          scope = scope.where(screen_id: params[:screen_id])
+        end
+
+        if params[:theatre_id].present?
+          scope = scope.joins(screen: :theatre)
+                       .where(theatres: { id: params[:theatre_id] })
+        end
+
         show  = scope.find_by(id: params[:id])
         not_found unless show
         show
       end
-
-      # ── Params ───────────────────────────────────────────────────────────────
 
       def show_params
         params.require(:show).permit(
@@ -130,8 +129,6 @@ module Api
           section_prices: [:seat_section_id, :base_price]
         )
       end
-
-      # ── Serializers ──────────────────────────────────────────────────────────
 
       def serialize(show, detailed: false)
         base = {

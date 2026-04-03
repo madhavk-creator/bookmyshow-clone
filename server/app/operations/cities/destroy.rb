@@ -4,8 +4,6 @@ module Cities
     step :destroy
     fail :collect_errors
 
-    private
-
     def find_city(ctx, params:, **)
       ctx[:model] = ::City.find_by(id: params[:id])
       unless ctx[:model]
@@ -18,12 +16,12 @@ module Cities
     def destroy(ctx, model:, **)
       model.destroy
     rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: ['Cannot delete a cities that has theatres'] }
+      ctx[:errors] = { base: ['Cannot delete a city that has theatres'] }
       false
     end
 
     def collect_errors(ctx, model:, **)
-      ctx[:errors] ||= { base: ['Could not delete cities'] }
+      ctx[:errors] ||= { base: ['Could not delete city'] }
     end
   end
 end

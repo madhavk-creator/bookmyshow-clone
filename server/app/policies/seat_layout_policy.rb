@@ -1,5 +1,5 @@
 # index / shows  → public (vendors and users need to see layouts)
-# create        → vendors who owns the screens's theatres, or admins
+# create        → vendors who own the screen's theatre, or admins
 # update        → same, and only on draft layouts
 # publish       → same as update
 # archive       → same as update

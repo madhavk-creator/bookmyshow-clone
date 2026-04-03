@@ -4,8 +4,6 @@ module Formats
     step :persist
     fail :collect_errors
 
-    private
-
     def update_attributes(ctx, params:, model:, **)
       allowed = %i[name code]
       model.assign_attributes(params.slice(*allowed).compact)
