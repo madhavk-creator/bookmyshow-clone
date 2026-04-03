@@ -22,7 +22,6 @@ export default function UserSettings() {
   })
   const [savingProfile, setSavingProfile] = useState(false)
 
-  // Password Form State
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     password: '',
@@ -42,7 +41,6 @@ export default function UserSettings() {
     try {
       const endpoint = `${getEndpointPrefix()}/profile`
       const { data } = await api.patch(endpoint, { profile: profileData })
-      // API returns { token, user }
       dispatch(setCredentials({ token: data.token || token, user: data.user }))
       showSuccessToast('Profile updated successfully')
     } catch (err) {

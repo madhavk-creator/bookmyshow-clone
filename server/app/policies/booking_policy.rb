@@ -8,9 +8,11 @@ class BookingPolicy < ApplicationPolicy
   def index?          = true   # scoped via BookingPolicy::Scope
   def show?           = own_booking? || current_user&.admin?
   def create?         = current_user.present?
+  def update?         = own_booking?
   def cancel?         = (own_booking? && before_show_starts?) || current_user&.admin?
   def cancel_ticket?  = (own_booking? && before_show_starts?) || current_user&.admin?
   def confirm_payment? = own_booking?
+  def apply_coupon?   = own_booking?
 
   class Scope < ApplicationPolicy::Scope
     def resolve

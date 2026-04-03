@@ -30,7 +30,6 @@ export default function UserProfile() {
           upcomingShows: upcoming
         })
         
-        // Grab top 3 recent confirmed bookings
         setRecentBookings(
           bookings.filter(b => b.status === 'confirmed').slice(0, 3)
         )

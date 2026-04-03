@@ -26,9 +26,13 @@ Rails.application.routes.draw do
         post 'login',    to: 'admin/sessions#create'
         patch 'profile',  to: 'admin/profiles#update'
         patch 'password', to: 'admin/profiles#update_password'
+        resources :coupons, only: %i[index create destroy], module: 'admin'
       end
 
       # ── Reference data ─────────────────────────────────────────────────────
+      get 'coupons', to: 'coupons#index'
+      get 'coupons/:code/validate', to: 'coupons#validate'
+      
       resources :vendors, only: %i[index] do
         member do
           get :income
@@ -60,6 +64,7 @@ Rails.application.routes.draw do
         member do
           post 'confirm_payment'
           post 'cancel'
+          post 'apply_coupon'
           post 'tickets/:ticket_id/cancel', action: :cancel_ticket, as: :cancel_ticket
         end
       end

@@ -10,8 +10,10 @@ module Api
           current_user: current_user,
           params: { page: params[:page], per_page: params[:per_page] }
         ) do |operation_result|
+          bookings = operation_result[:records].map { |booking| refresh_booking_expiration!(booking) }
+
           return render json: {
-            bookings: operation_result[:records].map { |booking| serialize(booking) },
+            bookings: bookings.map { |booking| serialize(booking) },
             pagination: operation_result[:pagination]
           }
         end
@@ -25,7 +27,7 @@ module Api
         return unless booking
 
         authorize booking
-        render json: serialize(booking, detailed: true)
+        render json: serialize(refresh_booking_expiration!(booking), detailed: true)
       end
 
       # POST /api/v1/bookings
@@ -78,6 +80,25 @@ module Api
         end
       end
 
+      # POST /api/v1/bookings/:id/apply_coupon
+      def apply_coupon
+        booking = find_booking
+        return unless booking
+
+        authorize booking, :update?
+
+        result = Bookings::ApplyCoupon.call(
+          params:       { id: booking.id, coupon_code: params[:coupon_code] },
+          current_user: current_user
+        )
+
+        if result.success?
+          render json: serialize(result[:model], detailed: true)
+        else
+          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        end
+      end
+
       # POST /api/v1/bookings/:id/tickets/:ticket_id/cancel
       def cancel_ticket
         booking = find_booking
@@ -106,6 +127,21 @@ module Api
         ).find_by(id: params[:id])
 
         render json: { error: 'Booking not found' }, status: :not_found unless booking
+        booking
+      end
+
+      def refresh_booking_expiration!(booking)
+        return booking unless booking.status_pending?
+
+        active_locks = ShowSeatState.where(
+          lock_token: booking.lock_token,
+          status: 'locked'
+        ).where('locked_until >= ?', Time.current)
+
+        return booking if active_locks.exists?
+
+        ShowSeatState.where(lock_token: booking.lock_token, status: 'locked').delete_all
+        booking.update!(status: 'expired')
         booking
       end
 

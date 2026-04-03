@@ -43,9 +43,11 @@ module Api
             state = state_by_seat_id[seat.id]
             status = if !seat.is_active
                        'inactive'
+                     elsif state
+                       state.effective_status
                      else
-                       state&.effective_status || 'available'
-                     end
+                       'available'
+                    end
             counts[status.to_sym] += 1
 
             {

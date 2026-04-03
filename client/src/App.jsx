@@ -29,6 +29,7 @@ import AdminRegisterPage from './pages/admin/AdminRegister'
 import AdminScreens from './pages/admin/AdminScreens'
 import AdminSeatLayoutManager from './pages/admin/AdminSeatLayoutManager'
 import AdminSeatLayoutEditor from './pages/admin/AdminSeatLayoutEditor'
+import AdminCoupons from './pages/admin/AdminCoupons'
 import AppToastProvider from './components/AppToastProvider'
 import { ConfirmProvider } from './components/ConfirmProvider'
 import { CityProvider } from './context/CityContext'
@@ -106,6 +107,7 @@ function App() {
               <Route path="layouts/:theatreId/:screenId/:layoutId" element={<AdminSeatLayoutEditor />} />
               <Route path="register" element={<AdminRegisterPage />} />
               <Route path="settings" element={<UserSettings />} />
+              <Route path="coupons" element={<AdminCoupons />} />
             </Route>
           </Route>
         </Routes>

@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
-import { api, extractApiError } from '../utils/api'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../utils/toast'
+import { useConfirm } from '../components/ConfirmProvider'
 import { Loader, Ticket, Clock, CheckCircle, XCircle, MapPin, Film, Star, X } from 'lucide-react'
 
 export default function UserBookings() {
+  const confirm = useConfirm()
+  const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [cancellingBookingId, setCancellingBookingId] = useState(null)
   
   const [reviewModal, setReviewModal] = useState({ isOpen: false, movieId: null, movieTitle: '' })
   const [reviewForm, setReviewForm] = useState({ rating: 5, description: '' })
@@ -47,6 +52,39 @@ export default function UserBookings() {
     return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  const canCancelBooking = (booking) => (
+    (booking.status === 'pending' || booking.status === 'confirmed') &&
+    new Date(booking.show?.start_time).getTime() > Date.now()
+  )
+
+  const handleCancelBooking = async (booking) => {
+    const confirmed = await confirm({
+      title: 'Cancel Booking?',
+      message: `Cancel your booking for ${booking.show?.movie?.title}? Seats will be released if the show has not started yet.`,
+      confirmText: 'Cancel Booking',
+      cancelText: 'Keep Booking',
+      tone: 'danger',
+    })
+    if (!confirmed) return
+
+    setCancellingBookingId(booking.id)
+    try {
+      const { data } = await api.post(`/api/v1/bookings/${booking.id}/cancel`)
+      setBookings((current) => current.map((entry) => (
+        entry.id === booking.id ? { ...entry, ...data } : entry
+      )))
+      showSuccessToast('Booking cancelled.')
+    } catch (err) {
+      showApiErrorToast(err, 'Failed to cancel booking')
+    } finally {
+      setCancellingBookingId(null)
+    }
+  }
+
+  const openBookingSummary = (bookingId) => {
+    navigate(`/checkout/${bookingId}`)
+  }
+
   if (loading) return <div className="flex justify-center items-center min-h-[60vh]"><Loader className="w-10 h-10 animate-spin text-primary-500" /></div>
 
   return (
@@ -68,7 +106,11 @@ export default function UserBookings() {
                const statusColor = booking.status === 'confirmed' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : booking.status === 'cancelled' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20'
 
                return (
-                 <div key={booking.id} className="glass-card bg-white dark:bg-neutral-900/40 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row gap-6 items-start md:items-center hover:border-primary-500/20 transition-colors">
+                 <div
+                   key={booking.id}
+                   onClick={() => openBookingSummary(booking.id)}
+                   className="glass-card bg-white dark:bg-neutral-900/40 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row gap-6 items-start md:items-center hover:border-primary-500/20 transition-colors cursor-pointer"
+                 >
                    <div className="flex-1 space-y-4 w-full">
                      <div className="flex justify-between items-start">
                        <div>
@@ -102,10 +144,25 @@ export default function UserBookings() {
                      
                      {booking.status === 'confirmed' && (
                        <button
-                         onClick={() => setReviewModal({ isOpen: true, movieId: booking.show.movie.id, movieTitle: booking.show.movie.title })}
+                         onClick={(event) => {
+                           event.stopPropagation()
+                           setReviewModal({ isOpen: true, movieId: booking.show.movie.id, movieTitle: booking.show.movie.title })
+                         }}
                          className="px-6 py-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-primary-500/10 text-neutral-900 dark:text-primary-400 rounded-xl font-bold transition-all border border-transparent hover:border-primary-500/20 text-sm whitespace-nowrap flex items-center justify-center gap-2"
                        >
                          <Star className="w-4 h-4" /> Write Review
+                       </button>
+                     )}
+                     {canCancelBooking(booking) && (
+                       <button
+                         onClick={(event) => {
+                           event.stopPropagation()
+                           handleCancelBooking(booking)
+                         }}
+                         disabled={cancellingBookingId === booking.id}
+                         className="px-6 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl font-bold transition-all border border-transparent hover:border-red-500/20 text-sm whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-50"
+                       >
+                         {cancellingBookingId === booking.id ? <Loader className="w-4 h-4 animate-spin" /> : 'Cancel Booking'}
                        </button>
                      )}
                    </div>

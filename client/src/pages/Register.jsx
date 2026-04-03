@@ -41,7 +41,6 @@ export default function Register() {
 
   return (
     <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 relative overflow-hidden py-12">
-      {/* dynamic bg */}
       <div className="absolute top-10 left-10 w-80 h-80 bg-blue-600/20 rounded-full mix-blend-multiply filter blur-3xl animate-float" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-primary-600/20 rounded-full mix-blend-multiply filter blur-3xl animate-float delay-1000" />
 

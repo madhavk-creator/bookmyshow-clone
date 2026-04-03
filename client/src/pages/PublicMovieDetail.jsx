@@ -35,7 +35,6 @@ export default function PublicMovieDetail() {
     <div className="min-h-screen bg-neutral-50 dark:bg-[#0b090f] pb-20 fade-in">
       {/* Hero Banner with Movie Poster & Info */}
       <div className="relative w-full h-[50vh] min-h-[400px]">
-        {/* We use a generic image due to lack of poster url in API */}
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2670&auto=format&fit=crop')] opacity-30 bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-50 dark:from-[#0b090f] via-neutral-900/50 dark:via-[#0b090f]/80 to-transparent" />
 
@@ -49,9 +48,9 @@ export default function PublicMovieDetail() {
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white glow-text">{movie.title}</h1>
             <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-neutral-200">
               <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {movie.running_time} mins</span>
-              <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded">{movie.rating}</span>
+              <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded">{movie.rating?.toUpperCase()}</span>
               <span>{new Date(movie.release_date).toLocaleDateString()}</span>
-              <span>{movie.language_entries?.map(l => l.language?.name).join(', ')}</span>
+              <span>{movie.languages?.map((language) => language?.name || language?.code).filter(Boolean).join(', ') || 'Languages TBA'}</span>
             </div>
           </div>
           <div className="w-full md:w-auto">

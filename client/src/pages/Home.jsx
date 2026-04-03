@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Clock, MapPin, PlayCircle, Loader, Film } from 'lucide-react'
+import { Clock, MapPin, PlayCircle, Loader, Film } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCity } from '../context/CityContext'
@@ -33,7 +33,15 @@ export default function Home() {
       }
     }
     fetchData()
-  }, [])
+  }, [selectedCity, setSelectedCity])
+
+  const formatMovieLanguages = (movie) => {
+    const labels = Array.isArray(movie?.languages)
+      ? movie.languages.map((language) => language?.name || language?.code).filter(Boolean)
+      : []
+
+    return labels.length > 0 ? labels.join(', ') : 'Languages TBA'
+  }
 
   return (
     <div className="flex-1 w-full bg-neutral-50 dark:bg-[#0b090f]">
@@ -53,7 +61,9 @@ export default function Home() {
           <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight glow-text leading-tight">
             Discover The Best <br/> <span className="text-primary-400">Cinematic Experiences</span>
           </h1>
-          <p className="text-xl text-neutral-300 font-medium">Book tickets for your favorite movies, sports, and events.</p>
+          <p className="text-xl text-neutral-300 font-medium text-white tracking-tight glow-text leading-tight">Watch your favorite films on the big screen. Experience convenience like never before.</p>
+          <p className="text-xl text-neutral-300 font-medium text-white tracking-tight glow-text leading-tight">Book tickets, choose seats, and enjoy exclusive offers all in one place.</p>
+          <p className="text-sm text-neutral-500">Select your city to find nearby theaters and showtimes</p>
           
           <div className="mt-8 flex justify-center">
             <div className="glass-card p-2 inline-flex items-center space-x-2 rounded-2xl w-full max-w-md backdrop-blur-xl bg-black/40 border-white/10">
@@ -113,17 +123,19 @@ export default function Home() {
                       <PlayCircle className="w-16 h-16 text-white drop-shadow-lg scale-50 group-hover:scale-100 transition-all duration-300" />
                     </div>
                     <div className="absolute bottom-4 left-4 right-4 flex gap-2">
-                       {/* Optional dynamic genre tags */}
                        <span className="bg-primary-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">{movie.genre || "Drama"}</span>
                     </div>
                   </div>
-                  <div className="p-6">
+                  <div className="flex flex-1 flex-col p-6">
                     <h3 className="font-bold text-xl text-neutral-900 dark:text-white mb-3 line-clamp-1">{movie.title}</h3>
-                    <div className="flex items-center text-sm text-neutral-500 dark:text-neutral-400 font-medium mb-4 space-x-4">
+                    <div className="flex flex-wrap items-center text-sm text-neutral-500 dark:text-neutral-400 font-medium mb-2 gap-3">
                       <div className="flex items-center gap-1"><Clock className="w-4 h-4"/> {movie.running_time || 120}m</div>
-                      <div className="flex items-center gap-1 text-primary-600 dark:text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded text-xs">{movie.rating || 'UA'}</div>
+                      <div className="flex items-center gap-1 text-primary-600 dark:text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded text-xs">{movie.rating?.toUpperCase() || 'UA'}</div>
                     </div>
-                    <div className="flex gap-2">
+                    <p className="mb-4 min-h-[2.5rem] text-sm font-medium text-neutral-500 dark:text-neutral-400 line-clamp-2">
+                      {formatMovieLanguages(movie)}
+                    </p>
+                    <div className="mt-auto flex gap-2">
                       <button onClick={(e) => { e.stopPropagation(); navigate(`/movies/${movie.id}`) }} className="flex-1 py-2.5 rounded-xl border-2 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all text-sm">
                         Read More
                       </button>
