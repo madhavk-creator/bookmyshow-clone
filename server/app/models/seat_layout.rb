@@ -22,9 +22,9 @@ class SeatLayout < ApplicationRecord
   end
 
   def only_one_published_per_screen
-    return unless SeatLayout.where(screen_id: screen_id, status: 'published')
+    return unless SeatLayout.where(screen_id: screen_id, status: "published")
                             .where.not(id: id).exists?
-    errors.add(:status, 'another layout is already published for this screens')
+    errors.add(:status, "another layout is already published for this screens")
   end
 
   scope :published_first, -> { order(published_at: :desc, created_at: :desc) }

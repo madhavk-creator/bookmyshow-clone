@@ -1,47 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Layers, Plus, Pencil, Loader, X, CheckCircle, Archive, ArrowLeft, Eye } from 'lucide-react'
-import { api, extractApiError } from '../../utils/api'
+import { useArchiveSeatLayoutMutation, useCreateSeatLayoutMutation, useGetScreenQuery, useGetSeatLayoutsQuery, usePublishSeatLayoutMutation } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function AdminSeatLayoutManager() {
   const { theatreId, screenId } = useParams()
   const navigate = useNavigate()
-  const [layouts, setLayouts] = useState([])
-  const [screen, setScreen] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({ name: '', total_rows: '', total_columns: '', screen_label: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
+  const [createSeatLayout] = useCreateSeatLayoutMutation()
+  const [publishSeatLayout] = usePublishSeatLayoutMutation()
+  const [archiveSeatLayout] = useArchiveSeatLayoutMutation()
 
   const base = `/api/v1/theatres/${theatreId}/screens/${screenId}`
-
-  const fetchLayouts = async () => {
-    try {
-      const [{ data: layoutRes }, { data: screenRes }] = await Promise.all([
-        api.get(`${base}/seat_layouts`),
-        api.get(base),
-      ])
-      setLayouts(Array.isArray(layoutRes) ? layoutRes : [])
-      setScreen(screenRes)
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
-  }
-
-  useEffect(() => { fetchLayouts() }, [theatreId, screenId])
+  const { data: screen, isLoading: screenLoading } = useGetScreenQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
+  const {
+    data: layouts = [],
+    isLoading: layoutsLoading,
+    isFetching: layoutsFetching,
+  } = useGetSeatLayoutsQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
+  const loading = screenLoading || layoutsLoading || layoutsFetching
 
   const handleCreate = async (e) => {
     e.preventDefault()
     setSubmitting(true)
     setError(null)
     try {
-      const { data } = await api.post(`${base}/seat_layouts`, {
-        seat_layout: { ...formData, total_rows: parseInt(formData.total_rows), total_columns: parseInt(formData.total_columns) },
-      })
+      const data = await createSeatLayout({
+        theatreId,
+        screenId,
+        seatLayout: { ...formData, total_rows: parseInt(formData.total_rows), total_columns: parseInt(formData.total_columns) },
+      }).unwrap()
       setShowModal(false)
       setFormData({ name: '', total_rows: '', total_columns: '', screen_label: '' })
       showSuccessToast('Seat layout created successfully.')
@@ -62,9 +58,8 @@ export default function AdminSeatLayoutManager() {
     })
     if (!confirmed) return
     try {
-      await api.post(`${base}/seat_layouts/${layoutId}/publish`)
+      await publishSeatLayout({ theatreId, screenId, layoutId }).unwrap()
       showSuccessToast('Seat layout published successfully.')
-      fetchLayouts()
     } catch (err) { showApiErrorToast(err, 'Publish failed') }
   }
 
@@ -77,9 +72,8 @@ export default function AdminSeatLayoutManager() {
     })
     if (!confirmed) return
     try {
-      await api.post(`${base}/seat_layouts/${layoutId}/archive`)
+      await archiveSeatLayout({ theatreId, screenId, layoutId }).unwrap()
       showSuccessToast('Seat layout archived successfully.')
-      fetchLayouts()
     } catch (err) { showApiErrorToast(err, 'Archive failed') }
   }
 

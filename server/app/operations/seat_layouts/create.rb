@@ -1,5 +1,5 @@
 module SeatLayouts
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
     step :find_screen
     step :build_layout
     step :persist
@@ -8,7 +8,7 @@ module SeatLayouts
     def find_screen(ctx, params:, **)
       ctx[:screen] = Screen.find_by(id: params[:screen_id])
       unless ctx[:screen]
-        ctx[:errors] = { screen: ['Screen not found'] }
+        ctx[:errors] = { screen: [ "Screen not found" ] }
         return false
       end
       true
@@ -32,16 +32,16 @@ module SeatLayouts
       return true if model.save
 
       model.valid? if model.errors.empty?
-      ctx[:errors] = model.errors.to_hash(true).presence || { base: ['Could not create seat layout'] }
+      ctx[:errors] = model.errors.to_hash(true).presence || { base: [ "Could not create seat layout" ] }
       false
     rescue StandardError => e
-      ctx[:errors] = { base: [e.message] }
+      ctx[:errors] = { base: [ e.message ] }
       false
     end
 
     def collect_errors(ctx, model: nil, **)
       current_model = model || ctx[:model]
-      ctx[:errors] ||= current_model&.errors&.to_hash(true) || { base: ['Could not create seat layout'] }
+      ctx[:errors] ||= current_model&.errors&.to_hash(true) || { base: [ "Could not create seat layout" ] }
     end
 
     def next_version_number(screen)

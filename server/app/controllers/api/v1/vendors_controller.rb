@@ -42,9 +42,7 @@ module Api
         }
       end
 
-      def serialize_many(vendors)
-        vendors.map { |vendor| serialize(vendor) }
-      end
+      def serialize_many(vendors) = vendors.map { |vendor| serialize(vendor) }
 
       def serialize_income(vendor, operation_result)
         {
@@ -62,9 +60,7 @@ module Api
         }
       end
 
-      def not_found
-        render json: { error: 'Vendor not found' }, status: :not_found
-      end
+      def not_found = render(json: { error: "Vendor not found" }, status: :not_found)
     end
   end
 end

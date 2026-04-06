@@ -1,5 +1,5 @@
 module Cities
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
     step :build_city
     step :persist
     fail :collect_errors

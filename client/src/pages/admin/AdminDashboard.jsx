@@ -1,80 +1,34 @@
-import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Clapperboard, MapPin, Globe, MonitorPlay, Building2, Users, TrendingUp, Ticket } from 'lucide-react'
-import { api, getVendorIncome, getVendors } from '../../utils/api'
+import {
+  useGetCitiesQuery,
+  useGetFormatsQuery,
+  useGetLanguagesQuery,
+  useGetMoviesQuery,
+  useGetTheatresQuery,
+  useGetVendorSummariesQuery,
+  useGetVendorsQuery,
+} from '../../store/apiSlice'
 
 export default function AdminDashboard() {
-  const [counts, setCounts] = useState({ movies: '—', cities: '—', languages: '—', formats: '—', theatres: '—', vendors: '—' })
-  const [vendorSummaries, setVendorSummaries] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data: movies = [], isLoading: moviesLoading } = useGetMoviesQuery()
+  const { data: cities = [], isLoading: citiesLoading } = useGetCitiesQuery()
+  const { data: languages = [], isLoading: languagesLoading } = useGetLanguagesQuery()
+  const { data: formats = [], isLoading: formatsLoading } = useGetFormatsQuery()
+  const { data: theatres = [], isLoading: theatresLoading } = useGetTheatresQuery()
+  const { data: vendors = [], isLoading: vendorsLoading } = useGetVendorsQuery()
+  const { data: vendorSummaries = [], isLoading: summariesLoading } = useGetVendorSummariesQuery()
 
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        const [
-          { data: movies },
-          { data: cities },
-          { data: languages },
-          { data: formats },
-          { data: theatres },
-          { data: vendorsData },
-        ] = await Promise.all([
-          api.get('/api/v1/movies'),
-          api.get('/api/v1/cities'),
-          api.get('/api/v1/languages'),
-          api.get('/api/v1/formats'),
-          api.get('/api/v1/theatres'),
-          getVendors(),
-        ])
+  const loading = moviesLoading || citiesLoading || languagesLoading || formatsLoading || theatresLoading || vendorsLoading || summariesLoading
 
-        const vendors = Array.isArray(vendorsData) ? vendorsData : (vendorsData?.vendors || [])
-        const incomeResponses = await Promise.all(
-          vendors.map(async (vendor) => {
-            try {
-              const { data } = await getVendorIncome(vendor.id)
-              return {
-                id: vendor.id,
-                name: vendor.name,
-                email: vendor.email,
-                theatres_count: vendor.theatres_count ?? data.theatres_count ?? 0,
-                tickets_sold_count: data.tickets_sold_count ?? 0,
-                completed_bookings_count: data.completed_bookings_count ?? 0,
-                total_income: Number(data.total_income || 0),
-                gross_income: Number(data.gross_income || 0),
-                refund_amount: Number(data.refund_amount || 0),
-              }
-            } catch (error) {
-              console.error(error)
-              return {
-                id: vendor.id,
-                name: vendor.name,
-                email: vendor.email,
-                theatres_count: vendor.theatres_count ?? 0,
-                tickets_sold_count: 0,
-                completed_bookings_count: 0,
-                total_income: 0,
-                gross_income: 0,
-                refund_amount: 0,
-              }
-            }
-          })
-        )
-
-        setCounts({
-          movies: Array.isArray(movies) ? movies.length : (movies?.pagination?.total_count ?? movies?.movies?.length ?? 0),
-          cities: Array.isArray(cities) ? cities.length : 0,
-          languages: Array.isArray(languages) ? languages.length : 0,
-          formats: Array.isArray(formats) ? formats.length : 0,
-          theatres: Array.isArray(theatres) ? theatres.length : (theatres?.pagination?.total_count ?? theatres?.theatres?.length ?? 0),
-          vendors: vendors.length,
-        })
-        setVendorSummaries(incomeResponses.sort((a, b) => b.total_income - a.total_income))
-      } catch (err) { console.error(err) }
-      finally { setLoading(false) }
-    }
-
-    fetchDashboard()
-  }, [])
+  const counts = {
+    movies: movies.length,
+    cities: cities.length,
+    languages: languages.length,
+    formats: formats.length,
+    theatres: theatres.length,
+    vendors: vendors.length,
+  }
 
   const formatCurrency = (value) => new Intl.NumberFormat('en-IN', {
     style: 'currency',

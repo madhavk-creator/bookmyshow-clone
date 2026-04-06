@@ -1,48 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, extractApiError } from '../utils/api'
 import { showApiErrorToast, showWarningToast } from '../utils/toast'
 import { Loader, MapPin, Calendar, Clock, Ticket } from 'lucide-react'
 import { useSelector } from 'react-redux'
 import { selectCurrentUser } from '../store/authSlice'
+import { useCreateBookingMutation, useGetShowQuery, useGetShowSeatsQuery } from '../store/apiSlice'
 
 export default function PublicSeatSelection() {
   const { showId } = useParams()
   const navigate = useNavigate()
   const user = useSelector(selectCurrentUser)
-  
-  const [show, setShow] = useState(null)
-  const [sections, setSections] = useState([])
-  const [seats, setSeats] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [createBooking] = useCreateBookingMutation()
   const [selectedSeats, setSelectedSeats] = useState([])
   const [booking, setBooking] = useState(false)
-
-  useEffect(() => {
-    async function fetchShowData() {
-      try {
-        const [showRes, seatsRes] = await Promise.all([
-          api.get(`/api/v1/shows/${showId}`),
-          api.get(`/api/v1/shows/${showId}/seats`)
-        ])
-        setShow(showRes.data)
-        
-        const fetchedSections = seatsRes.data.sections || []
-        setSections(fetchedSections)
-        
-        const allSeats = fetchedSections.flatMap(sec => 
-          sec.seats.map(s => ({ ...s, section: sec }))
-        )
-        setSeats(allSeats)
-      } catch (err) {
-        console.error(err)
-        showApiErrorToast(err, 'Failed to load seats')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchShowData()
-  }, [showId])
+  const { data: show, isLoading: showLoading } = useGetShowQuery({ showId }, { skip: !showId })
+  const { data: seatData, isLoading: seatsLoading, refetch } = useGetShowSeatsQuery(showId, { skip: !showId })
+  const loading = showLoading || seatsLoading
+  const sections = seatData?.sections || []
+  const seats = useMemo(
+    () => sections.flatMap((section) => section.seats.map((seat) => ({ ...seat, section }))),
+    [sections]
+  )
 
   let totalRows = 0, totalColumns = 0
   seats.forEach(s => {
@@ -78,23 +56,15 @@ export default function PublicSeatSelection() {
 
     setBooking(true)
     try {
-      const { data } = await api.post('/api/v1/bookings', {
-        booking: {
-          show_id: showId,
-          seat_ids: selectedSeats.map(s => s.id)
-        }
-      })
+      const data = await createBooking({
+        show_id: showId,
+        seat_ids: selectedSeats.map(s => s.id)
+      }).unwrap()
       navigate(`/checkout/${data.id}`)
     } catch (err) {
        showApiErrorToast(err, 'Failed to hold seats. They might have just been booked!')
-       // Refresh seats silently
-       api.get(`/api/v1/shows/${showId}/seats`).then(res => {
-         const fetchedSections = res.data.sections || []
-         setSections(fetchedSections)
-         const allSeats = fetchedSections.flatMap(sec => sec.seats.map(s => ({ ...s, section: sec })))
-         setSeats(allSeats)
-         setSelectedSeats([])
-       })
+       await refetch()
+       setSelectedSeats([])
     } finally {
       setBooking(false)
     }

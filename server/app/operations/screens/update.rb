@@ -1,5 +1,5 @@
 module Screens
-  class Update < Trailblazer::Operation
+  class Update < ::Trailblazer::Operation
     step :find_screen
     step :assign_attributes
     step :validate_format_ids
@@ -9,7 +9,7 @@ module Screens
     def find_screen(ctx, params:, **)
       ctx[:model] = ::Screen.find_by(id: params[:id])
       unless ctx[:model]
-        ctx[:errors] = { base: ['Screen not found'] }
+        ctx[:errors] = { base: [ "Screen not found" ] }
         return false
       end
       true
@@ -28,7 +28,7 @@ module Screens
       invalid    = format_ids - valid_ids
 
       if invalid.any?
-        ctx[:errors] = { format_ids: ["Unknown formats IDs: #{invalid.join(', ')}"] }
+        ctx[:errors] = { format_ids: [ "Unknown formats IDs: #{invalid.join(', ')}" ] }
         return false
       end
 
@@ -58,7 +58,7 @@ module Screens
       record = error.respond_to?(:record) ? error.record : nil
       return record.errors.to_hash(true) if record&.errors&.any?
 
-      model.errors.to_hash(true).presence || { base: [error.message] }
+      model.errors.to_hash(true).presence || { base: [ error.message ] }
     end
 
     def collect_errors(ctx, model: nil, **)

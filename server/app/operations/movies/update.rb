@@ -1,5 +1,7 @@
 module Movies
-  class Update < Trailblazer::Operation
+  class Update < ::Trailblazer::Operation
+    include AssociationValidationSupport
+
     step :assign_attributes
     step :validate_languages
     step :validate_formats
@@ -16,94 +18,30 @@ module Movies
     def validate_languages(ctx, params:, **)
       return true unless params.key?(:language_entries)
 
-      entries      = Array(params[:language_entries])
-      language_ids = entries.map { |e| e[:language_id] || e['language_id'] }.uniq
-      valid_ids    = Language.where(id: language_ids).pluck(:id)
-      invalid      = language_ids - valid_ids
-
-      if invalid.any?
-        ctx[:errors] = { language_entries: ["Unknown languages IDs: #{invalid.join(', ')}"] }
-        return false
-      end
-
-      valid_types = %w[original dubbed subtitled]
-      entries.each do |entry|
-        type = entry[:type] || entry['type']
-        unless valid_types.include?(type.to_s)
-          ctx[:errors] = { language_entries: ["Invalid type '#{type}'. Must be one of: #{valid_types.join(', ')}"] }
-          return false
-        end
-      end
-
-      ctx[:language_entries] = entries.map do |entry|
-        {
-          language_id:   entry[:language_id] || entry['language_id'],
-          language_type: entry[:type] || entry['type']
-        }
-      end
-
-      true
+      valid, payload = validate_language_entries(ctx, params[:language_entries])
+      ctx[:language_entries] = payload if valid
+      valid
     end
 
     def validate_formats(ctx, params:, **)
       return true unless params.key?(:format_ids)
 
-      format_ids = Array(params[:format_ids]).uniq
-      valid_ids  = Format.where(id: format_ids).pluck(:id)
-      invalid    = format_ids - valid_ids
-
-      if invalid.any?
-        ctx[:errors] = { format_ids: ["Unknown formats IDs: #{invalid.join(', ')}"] }
-        return false
-      end
-
-      ctx[:format_ids] = format_ids
-
-      true
+      valid, payload = validate_format_ids(ctx, params[:format_ids])
+      ctx[:format_ids] = payload if valid
+      valid
     end
 
     def validate_cast_members(ctx, params:, model:, **)
       return true unless params.key?(:cast_members)
 
-      members     = Array(params[:cast_members])
-      valid_roles = %w[actor director producer writer composer]
-      existing_ids = model.cast_members.pluck(:id)
-      provided_ids = []
-
-      members.each do |member|
-        cast_member_id = member[:id] || member['id']
-        role = member[:role] || member['role']
-
-        if cast_member_id.present?
-          unless existing_ids.include?(cast_member_id)
-            ctx[:errors] = { cast_members: ["Unknown cast member ID: #{cast_member_id}"] }
-            return false
-          end
-
-          if provided_ids.include?(cast_member_id)
-            ctx[:errors] = { cast_members: ["Duplicate cast member ID: #{cast_member_id}"] }
-            return false
-          end
-
-          provided_ids << cast_member_id
-        end
-
-        unless valid_roles.include?(role.to_s)
-          ctx[:errors] = { cast_members: ["Invalid role '#{role}'. Must be one of: #{valid_roles.join(', ')}"] }
-          return false
-        end
-      end
-
-      ctx[:cast_members] = members.map do |member|
-        {
-          id: member[:id] || member['id'],
-          name: member[:name] || member['name'],
-          role: member[:role] || member['role'],
-          character_name: member[:character_name] || member['character_name']
-        }
-      end
-
-      true
+      valid, payload = validate_cast_member_entries(
+        ctx,
+        params[:cast_members],
+        model: model,
+        allow_existing_ids: true
+      )
+      ctx[:cast_members] = payload if valid
+      valid
     end
 
     def persist_changes(ctx, model:, **)
@@ -152,7 +90,10 @@ module Movies
       end
     end
 
-    def sync_cast_members!(model, members) # diff-based update
+    # PATCH treats nested cast_members as a full replacement set:
+    # provided IDs are updated, omitted existing members are removed,
+    # and entries without IDs are created.
+    def sync_cast_members!(model, members)
       existing_members = model.cast_members.index_by(&:id)
       incoming_ids = members.filter_map { |member| member[:id] }
 
@@ -173,7 +114,7 @@ module Movies
       record = error.respond_to?(:record) ? error.record : nil
       return record.errors.to_hash(true) if record&.errors&.any?
 
-      model.errors.to_hash(true).presence || { base: [error.message] }
+      model.errors.to_hash(true).presence || { base: [ error.message ] }
     end
 
     def collect_errors(ctx, model: nil, **)

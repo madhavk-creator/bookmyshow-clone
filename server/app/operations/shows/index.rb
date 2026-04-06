@@ -1,5 +1,5 @@
 module Shows
-  class Index < Trailblazer::Operation
+  class Index < ::Trailblazer::Operation
     step :load_shows
 
     def load_shows(ctx, current_user: nil, params: {}, **)
@@ -8,7 +8,7 @@ module Shows
                               :show_section_prices, screen: :theatre)
 
       scope = scope.where(screen_id: params[:screen_id]) if params[:screen_id].present?
-      scope = params[:status].present? ? scope.where(status: params[:status]) : scope.where(status: 'scheduled')
+      scope = params[:status].present? ? scope.where(status: params[:status]) : scope.where(status: "scheduled")
       scope = scope.where(movie_id: params[:movie_id]) if params[:movie_id].present?
 
       if params[:date].present?

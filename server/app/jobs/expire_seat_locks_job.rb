@@ -21,7 +21,7 @@ class ExpireSeatLocksJob < ApplicationJob
       # Expire any pending bookings that held these locks
       # Booking stores lock_token so we can correlate directly
       if lock_tokens.any?
-        Booking.where(lock_token: lock_tokens, status: 'pending').update_all(status: 'expired')
+        Booking.where(lock_token: lock_tokens, status: "pending").update_all(status: "expired")
       end
     end
   end

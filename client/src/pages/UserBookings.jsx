@@ -1,34 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../utils/toast'
 import { useConfirm } from '../components/ConfirmProvider'
 import { Loader, Ticket, Clock, CheckCircle, XCircle, MapPin, Film, Star, X } from 'lucide-react'
+import { useCancelBookingMutation, useGetBookingsQuery } from '../store/apiSlice'
 
 export default function UserBookings() {
   const confirm = useConfirm()
   const navigate = useNavigate()
-  const [bookings, setBookings] = useState([])
-  const [loading, setLoading] = useState(true)
   const [cancellingBookingId, setCancellingBookingId] = useState(null)
+  const [cancelBooking] = useCancelBookingMutation()
   
   const [reviewModal, setReviewModal] = useState({ isOpen: false, movieId: null, movieTitle: '' })
   const [reviewForm, setReviewForm] = useState({ rating: 5, description: '' })
   const [submittingReview, setSubmittingReview] = useState(false)
-
-  useEffect(() => {
-    async function fetchBookings() {
-      try {
-        const { data } = await api.get('/api/v1/bookings')
-        setBookings(data.bookings || [])
-      } catch (err) {
-        showApiErrorToast(err, 'Failed to load bookings')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchBookings()
-  }, [])
+  const { data: bookingsData, isLoading, isFetching } = useGetBookingsQuery()
+  const bookings = bookingsData?.bookings || []
+  const loading = isLoading || isFetching
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault()
@@ -69,10 +58,7 @@ export default function UserBookings() {
 
     setCancellingBookingId(booking.id)
     try {
-      const { data } = await api.post(`/api/v1/bookings/${booking.id}/cancel`)
-      setBookings((current) => current.map((entry) => (
-        entry.id === booking.id ? { ...entry, ...data } : entry
-      )))
+      await cancelBooking(booking.id).unwrap()
       showSuccessToast('Booking cancelled.')
     } catch (err) {
       showApiErrorToast(err, 'Failed to cancel booking')

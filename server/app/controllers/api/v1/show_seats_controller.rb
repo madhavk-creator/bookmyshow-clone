@@ -41,13 +41,7 @@ module Api
 
           serialized_seats = seats.map do |seat|
             state = state_by_seat_id[seat.id]
-            status = if !seat.is_active
-                       'inactive'
-                     elsif state
-                       state.effective_status
-                     else
-                       'available'
-                    end
+            status = !seat.is_active ? "inactive" : (state ? state.effective_status : "available")
             counts[status.to_sym] += 1
 
             {
@@ -97,7 +91,7 @@ module Api
           ShowSeatStates::Block,
           params: { show_id: @show.id, seat_id: params[:seat_id] }
         ) do
-          return render json: { message: 'Seat blocked', seat_id: params[:seat_id] }, status: :created
+          return render json: { message: "Seat blocked", seat_id: params[:seat_id] }, status: :created
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -112,7 +106,7 @@ module Api
           ShowSeatStates::Unblock,
           params: { show_id: @show.id, seat_id: params[:seat_id] }
         ) do
-          return render json: { message: 'Seat unblocked', seat_id: params[:seat_id] }
+          return render json: { message: "Seat unblocked", seat_id: params[:seat_id] }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -122,7 +116,7 @@ module Api
 
       def find_show
         @show = Show.find_by(id: params[:id] || params[:show_id])
-        render json: { error: 'Show not found' }, status: :not_found unless @show
+        render json: { error: "Show not found" }, status: :not_found unless @show
       end
     end
   end

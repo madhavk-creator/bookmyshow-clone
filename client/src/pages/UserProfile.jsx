@@ -1,46 +1,21 @@
-import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { selectCurrentUser } from '../store/authSlice'
-import { api } from '../utils/api'
-import { Calendar, Ticket, User, Clock, Film } from 'lucide-react'
+import { Calendar, Ticket, Film } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useGetBookingsQuery } from '../store/apiSlice'
 
 export default function UserProfile() {
   const user = useSelector(selectCurrentUser)
-  const [stats, setStats] = useState({ totalBookings: 0, upcomingShows: 0 })
-  const [recentBookings, setRecentBookings] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchUserData() {
-      try {
-        const { data } = await api.get('/api/v1/bookings')
-        const bookings = data.bookings || []
-        
-        const now = new Date()
-        let upcoming = 0
-        bookings.forEach(b => {
-          if (b.status === 'confirmed' && new Date(b.show.start_time) > now) {
-            upcoming++
-          }
-        })
-        
-        setStats({
-          totalBookings: data.pagination?.total_records || bookings.length,
-          upcomingShows: upcoming
-        })
-        
-        setRecentBookings(
-          bookings.filter(b => b.status === 'confirmed').slice(0, 3)
-        )
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchUserData()
-  }, [])
+  const { data: bookingsData, isLoading, isFetching } = useGetBookingsQuery()
+  const loading = isLoading || isFetching
+  const bookings = bookingsData?.bookings || []
+  const now = new Date()
+  const upcomingShows = bookings.filter((booking) => booking.status === 'confirmed' && new Date(booking.show?.start_time) > now).length
+  const stats = {
+    totalBookings: bookingsData?.pagination?.total_records || bookings.length,
+    upcomingShows,
+  }
+  const recentBookings = bookings.filter((booking) => booking.status === 'confirmed').slice(0, 3)
 
   const getInitials = (name) => {
     if (!name) return '?'

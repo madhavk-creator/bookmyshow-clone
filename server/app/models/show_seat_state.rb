@@ -14,9 +14,9 @@ class ShowSeatState < ApplicationRecord
 
   belongs_to :show
   belongs_to :seat
-  belongs_to :locked_by_user, class_name: 'User', optional: true
+  belongs_to :locked_by_user, class_name: "User", optional: true
 
-  enum :status, { locked: 'locked', booked: 'booked', blocked: 'blocked' }, prefix: true
+  enum :status, { locked: "locked", booked: "booked", blocked: "blocked" }, prefix: true
 
   validates :show_id, :seat_id, :status, presence: true
   validates :seat_id, uniqueness: { scope: :show_id }
@@ -26,11 +26,11 @@ class ShowSeatState < ApplicationRecord
 
   # Locks that have passed their expiry but haven't been cleaned up yet.
   scope :expired_locks, -> {
-    where(status: 'locked').where('locked_until < ?', Time.current)
+    where(status: "locked").where("locked_until < ?", Time.current)
   }
 
   def effective_status
-    return 'available' if status_locked? && locked_until.present? && locked_until < Time.current
+    return "available" if status_locked? && locked_until.present? && locked_until < Time.current
 
     status
   end
@@ -46,7 +46,7 @@ class ShowSeatState < ApplicationRecord
 
   def lock_token_present_when_locked
     if status_locked? && lock_token.blank?
-      errors.add(:lock_token, 'must be present for locked seats')
+      errors.add(:lock_token, "must be present for locked seats")
     end
   end
 end

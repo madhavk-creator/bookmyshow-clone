@@ -1,7 +1,7 @@
-require 'jwt'
+require "jwt"
 
 module JsonWebToken
-  ALGORITHM = 'HS256'
+  ALGORITHM = "HS256"
   EXPIRY    = 24.hours
 
   module_function
@@ -24,7 +24,7 @@ module JsonWebToken
     payload = JWT.decode(token, secret, true, algorithm: ALGORITHM).first
     payload.with_indifferent_access
   rescue JWT::ExpiredSignature
-    raise Error, 'Token has expired'
+    raise Error, "Token has expired"
   rescue JWT::DecodeError => e
     raise Error, "Invalid token: #{e.message}"
   end

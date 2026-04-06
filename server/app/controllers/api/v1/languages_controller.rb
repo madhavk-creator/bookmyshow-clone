@@ -9,9 +9,7 @@ module Api
       def update_operation  = Languages::Update
       def destroy_operation = Languages::Destroy
 
-      def serialize(language)
-        { id: language.id, name: language.name, code: language.code }
-      end
+      def serialize(language) = { id: language.id, name: language.name, code: language.code }
     end
   end
 end

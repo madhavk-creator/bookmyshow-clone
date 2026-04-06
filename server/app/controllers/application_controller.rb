@@ -13,7 +13,7 @@ class ApplicationController < ActionController::API
 
   # Pundit: rescue policy violations globally
   rescue_from Pundit::NotAuthorizedError do
-    render json: { error: 'Forbidden' }, status: :forbidden
+    render json: { error: "Forbidden" }, status: :forbidden
   end
 
   # Pundit: tell it who the current users is

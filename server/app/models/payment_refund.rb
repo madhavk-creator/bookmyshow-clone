@@ -13,7 +13,7 @@ class PaymentRefund < ApplicationRecord
   def amount_does_not_exceed_ticket_price
     return if ticket.blank? || amount.blank?
     if amount > ticket.price
-      errors.add(:amount, 'cannot exceed the original ticket price')
+      errors.add(:amount, "cannot exceed the original ticket price")
     end
   end
 end

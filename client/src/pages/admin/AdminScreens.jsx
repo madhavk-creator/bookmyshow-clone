@@ -1,53 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Monitor, Plus, Pencil, Trash2, X, Loader, ArrowLeft, Layers } from 'lucide-react'
-import { api, extractApiError } from '../../utils/api'
+import { useCreateScreenMutation, useDeleteScreenMutation, useGetFormatsQuery, useGetScreensQuery, useGetTheatreQuery, useUpdateScreenMutation } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function AdminScreens() {
   const { theatreId } = useParams()
   const navigate = useNavigate()
-  const [theatre, setTheatre] = useState(null)
-  const [screens, setScreens] = useState([])
-  const [formats, setFormats] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [screensLoading, setScreensLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingScreen, setEditingScreen] = useState(null)
   const [formData, setFormData] = useState({ name: '', total_rows: '', total_columns: '', status: 'active', format_ids: [] })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
-
-  useEffect(() => {
-    async function init() {
-      try {
-        const [{ data: theatreRes }, { data: formatRes }] = await Promise.all([
-          api.get(`/api/v1/theatres/${theatreId}`),
-          api.get('/api/v1/formats'),
-        ])
-        setTheatre(theatreRes)
-        setFormats(Array.isArray(formatRes) ? formatRes : [])
-      } catch (err) { console.error(err) }
-      finally { setLoading(false) }
-    }
-    if (theatreId) init()
-  }, [theatreId])
-
-  useEffect(() => {
-    if (!theatreId) return
-    async function fetchScreens() {
-      setScreensLoading(true)
-      try {
-        const { data } = await api.get(`/api/v1/theatres/${theatreId}/screens`)
-        setScreens(Array.isArray(data) ? data : [])
-      } catch (err) { console.error(err) }
-      finally { setScreensLoading(false) }
-    }
-    fetchScreens()
-  }, [theatreId])
+  const [createScreen] = useCreateScreenMutation()
+  const [updateScreen] = useUpdateScreenMutation()
+  const [deleteScreen] = useDeleteScreenMutation()
+  const { data: theatre, isLoading: theatreLoading } = useGetTheatreQuery(theatreId, { skip: !theatreId })
+  const { data: formats = [] } = useGetFormatsQuery()
+  const {
+    data: screens = [],
+    isLoading: screensLoading,
+    isFetching: screensFetching,
+  } = useGetScreensQuery({ theatreId }, { skip: !theatreId })
 
   const openCreate = () => {
     setEditingScreen(null)
@@ -82,14 +60,12 @@ export default function AdminScreens() {
       }
 
       if (editingScreen) {
-        await api.patch(`/api/v1/theatres/${theatreId}/screens/${editingScreen.id}`, { screen: payload })
+        await updateScreen({ theatreId, screenId: editingScreen.id, screen: payload }).unwrap()
       } else {
-        await api.post(`/api/v1/theatres/${theatreId}/screens`, { screen: payload })
+        await createScreen({ theatreId, screen: payload }).unwrap()
       }
 
       setShowModal(false)
-      const { data: screensData } = await api.get(`/api/v1/theatres/${theatreId}/screens`)
-      setScreens(Array.isArray(screensData) ? screensData : [])
     } catch (err) {
       setError(extractApiError(err, 'Operation failed'))
     } finally {
@@ -106,8 +82,7 @@ export default function AdminScreens() {
     })
     if (!confirmed) return
     try {
-      await api.delete(`/api/v1/theatres/${theatreId}/screens/${id}`)
-      setScreens(prev => prev.filter(s => s.id !== id))
+      await deleteScreen({ theatreId, screenId: id }).unwrap()
       showSuccessToast('Screen deleted successfully.')
     } catch (err) {
       console.error(err)
@@ -126,7 +101,7 @@ export default function AdminScreens() {
     }))
   }
 
-  if (loading) {
+  if (theatreLoading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <Loader className="w-10 h-10 text-primary-500 animate-spin" />
@@ -151,7 +126,7 @@ export default function AdminScreens() {
         </button>
       </div>
 
-      {screensLoading ? (
+      {screensLoading || screensFetching ? (
         <div className="flex justify-center py-20">
           <Loader className="w-10 h-10 text-primary-500 animate-spin" />
         </div>

@@ -1,5 +1,5 @@
 module Formats
-  class Update < Trailblazer::Operation
+  class Update < ::Trailblazer::Operation
     step :update_attributes
     step :persist
     fail :collect_errors

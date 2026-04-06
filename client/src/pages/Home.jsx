@@ -1,39 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, MapPin, PlayCircle, Loader, Film } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../utils/api'
-import { useCity } from '../context/CityContext'
+import { useDispatch, useSelector } from 'react-redux'
+import { useGetCitiesQuery, useGetMoviesQuery } from '../store/apiSlice'
+import { selectSelectedCity, setSelectedCity } from '../store/citySlice'
 
 export default function Home() {
   const navigate = useNavigate()
-  const [movies, setMovies] = useState([])
-  const [cities, setCities] = useState([])
-  const { selectedCity, setSelectedCity } = useCity()
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  const selectedCity = useSelector(selectSelectedCity)
+  const { data: cities = [], isLoading: citiesLoading } = useGetCitiesQuery()
+  const {
+    data: movies = [],
+    isLoading: moviesLoading,
+    isFetching: moviesFetching,
+  } = useGetMoviesQuery(
+    { city_id: selectedCity },
+    { skip: !selectedCity }
+  )
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [{ data: movieRes }, { data: cityRes }] = await Promise.all([
-          api.get('/api/v1/movies'),
-          api.get('/api/v1/cities'),
-        ])
-        const moviesArray = Array.isArray(movieRes) ? movieRes : (movieRes.movies || [])
-        const citiesArray = Array.isArray(cityRes) ? cityRes : []
-        setMovies(moviesArray)
-        setCities(citiesArray)
-        if (citiesArray.length > 0 && !selectedCity) setSelectedCity(citiesArray[0].id)
-      } catch (err) {
-        console.error("Failed to load data", err)
-        setMovies([])
-        setCities([])
-      } finally {
-        setLoading(false)
-      }
+    if (cities.length > 0 && !selectedCity) {
+      dispatch(setSelectedCity(cities[0].id))
     }
-    fetchData()
-  }, [selectedCity, setSelectedCity])
+  }, [cities, dispatch, selectedCity])
+
+  const loading = citiesLoading || (!selectedCity && cities.length > 0) || moviesLoading || moviesFetching
 
   const formatMovieLanguages = (movie) => {
     const labels = Array.isArray(movie?.languages)
@@ -73,7 +66,7 @@ export default function Home() {
                 aria-label="Select City"
                 className="bg-transparent border-none text-white text-lg font-medium focus:ring-0 w-full p-3 outline-none cursor-pointer appearance-none"
                 value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
+                onChange={(e) => dispatch(setSelectedCity(e.target.value))}
               >
                 <option value="" disabled className="text-black">Choose your city</option>
                 {cities.map(city => (
@@ -151,7 +144,7 @@ export default function Home() {
             {!loading && movies.length === 0 && (
               <div className="col-span-full py-20 text-center text-neutral-500">
                 <Film className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-xl font-medium">No movies scheduled right now.</p>
+                <p className="text-xl font-medium">No movies with scheduled shows are available in this city right now.</p>
               </div>
             )}
           </div>

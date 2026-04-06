@@ -1,5 +1,5 @@
 module SeatLayouts
-  class Archive < Trailblazer::Operation
+  class Archive < ::Trailblazer::Operation
     step :find_layout
     step :check_no_upcoming_shows
     step :archive
@@ -8,7 +8,7 @@ module SeatLayouts
     def find_layout(ctx, params:, **)
       ctx[:model] = ::SeatLayout.find_by(id: params[:id])
       unless ctx[:model]
-        ctx[:errors] = { base: ['Layout not found'] }
+        ctx[:errors] = { base: [ "Layout not found" ] }
         return false
       end
       true
@@ -16,11 +16,11 @@ module SeatLayouts
 
     def check_no_upcoming_shows(ctx, model:, **)
       upcoming = model.shows
-                      .where(status: 'scheduled')
-                      .where('start_time > ?', Time.current)
+                      .where(status: "scheduled")
+                      .where("start_time > ?", Time.current)
                       .exists?
       if upcoming
-        ctx[:errors] = { base: ['Cannot archive a layout with upcoming scheduled shows'] }
+        ctx[:errors] = { base: [ "Cannot archive a layout with upcoming scheduled shows" ] }
         return false
       end
       true
@@ -29,7 +29,7 @@ module SeatLayouts
     def archive(ctx, model:, **)
       model.status_archived!
     rescue ActiveRecord::RecordInvalid => e
-      ctx[:errors] = { base: [e.message] }
+      ctx[:errors] = { base: [ e.message ] }
       false
     end
 

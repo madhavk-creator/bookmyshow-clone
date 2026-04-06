@@ -1,5 +1,5 @@
 module Theatres
-  class Index < Trailblazer::Operation
+  class Index < ::Trailblazer::Operation
     step :load_theatres
 
     private

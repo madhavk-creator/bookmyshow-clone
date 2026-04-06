@@ -13,11 +13,11 @@ module Authenticatable
 
     user = User.find_by(id: payload[:user_id])
     unless user&.is_active?
-      render json: { error: 'Unauthorized' }, status: :unauthorized and return
+      render json: { error: "Unauthorized" }, status: :unauthorized and return
     end
 
     if payload[:iat].present? && payload[:iat].to_i < user.updated_at.to_i
-      render json: { error: 'Token is no longer valid. Please login again.' }, status: :unauthorized and return
+      render json: { error: "Token is no longer valid. Please login again." }, status: :unauthorized and return
     end
 
     @current_user = user
@@ -26,7 +26,7 @@ module Authenticatable
   # Attempts to authenticate if an Authorization header is present.
   # Used for endpoints that are public but give expanded access/data to logged in users.
   def authenticate_optional!
-    return unless request.headers['Authorization'].present?
+    return unless request.headers["Authorization"].present?
 
     authenticate!
   end
@@ -38,21 +38,21 @@ module Authenticatable
     return unless current_user
 
     unless roles.map(&:to_s).include?(current_user.role)
-      render json: { error: 'Forbidden' }, status: :forbidden
+      render json: { error: "Forbidden" }, status: :forbidden
     end
   end
 
   private
 
   def decode_token!
-    header = request.headers['Authorization']
-    unless header&.start_with?('Bearer ')
-      render json: { error: 'Missing or malformed Authorization header' },
+    header = request.headers["Authorization"]
+    unless header&.start_with?("Bearer ")
+      render json: { error: "Missing or malformed Authorization header" },
              status: :unauthorized
       return nil
     end
 
-    token = header.split(' ', 2).last
+    token = header.split(" ", 2).last
     JsonWebToken.decode(token)
   rescue JsonWebToken::Error => e
     render json: { error: e.message }, status: :unauthorized

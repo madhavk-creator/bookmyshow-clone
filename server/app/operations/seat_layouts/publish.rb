@@ -5,7 +5,7 @@
 #   - total_seats on the layout must match actual active seat count
 #   - partial unique index enforces one published layout per screens at DB level
 module SeatLayouts
-  class Publish < Trailblazer::Operation
+  class Publish < ::Trailblazer::Operation
     step :find_layout
     step :validate_has_sections
     step :validate_has_seats
@@ -15,7 +15,7 @@ module SeatLayouts
     def find_layout(ctx, params:, **)
       ctx[:model] = ::SeatLayout.find_by(id: params[:id])
       unless ctx[:model]
-        ctx[:errors] = { base: ['Layout not found'] }
+        ctx[:errors] = { base: [ "Layout not found" ] }
         return false
       end
       true
@@ -23,7 +23,7 @@ module SeatLayouts
 
     def validate_has_sections(ctx, model:, **)
       unless model.seat_sections.exists?
-        ctx[:errors] = { base: ['Layout must have at least one section before publishing'] }
+        ctx[:errors] = { base: [ "Layout must have at least one section before publishing" ] }
         return false
       end
       true
@@ -31,7 +31,7 @@ module SeatLayouts
 
     def validate_has_seats(ctx, model:, **)
       unless model.seats.where(is_active: true).exists?
-        ctx[:errors] = { base: ['Layout must have at least one active seat before publishing'] }
+        ctx[:errors] = { base: [ "Layout must have at least one active seat before publishing" ] }
         return false
       end
       true
@@ -49,7 +49,7 @@ module SeatLayouts
         model.screen.update!(total_seats: active_count)
       end
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
-      ctx[:errors] = { base: [e.message] }
+      ctx[:errors] = { base: [ e.message ] }
       false
     end
 

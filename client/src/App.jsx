@@ -32,7 +32,6 @@ import AdminSeatLayoutEditor from './pages/admin/AdminSeatLayoutEditor'
 import AdminCoupons from './pages/admin/AdminCoupons'
 import AppToastProvider from './components/AppToastProvider'
 import { ConfirmProvider } from './components/ConfirmProvider'
-import { CityProvider } from './context/CityContext'
 import PublicMovieDetail from './pages/PublicMovieDetail'
 import PublicShows from './pages/PublicShows'
 import PublicSeatSelection from './pages/PublicSeatSelection'
@@ -43,9 +42,8 @@ import UserSettings from './pages/UserSettings'
 
 function App() {
   return (
-    <CityProvider>
-      <ConfirmProvider>
-        <>
+    <ConfirmProvider>
+      <>
         <Routes>
           {/* Public routes (top navbar) */}
           <Route element={<PublicLayout />}>
@@ -114,7 +112,6 @@ function App() {
         <AppToastProvider />
       </>
     </ConfirmProvider>
-    </CityProvider>
   )
 }
 

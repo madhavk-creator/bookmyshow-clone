@@ -3,75 +3,51 @@ module Api
     module Admin
       class CouponsController < ApplicationController
         before_action :authenticate!
+        before_action :authorize_admin!
 
         def index
-          authorize!
-          
-          coupons = ::Coupon.order(created_at: :desc)
-          render json: { coupons: coupons.map { |c| serialize(c) } }
+          render json: { coupons: CouponSerializer.many(::Coupon.order(created_at: :desc), admin: true) }
         end
 
         def create
-          authorize!
-
-          result = ::Admin::Coupons::Create.call(params: coupon_params.to_h.deep_symbolize_keys)
-
-          if result.success?
-            render json: serialize(result[:model]), status: :created
-          else
-            render json: { errors: result[:errors] }, status: :unprocessable_entity
+          result = run(::Admin::Coupons::Create, params: coupon_params.to_h.deep_symbolize_keys) do |operation_result|
+            return render json: CouponSerializer.one(operation_result[:model], admin: true), status: :created
           end
+
+          render_errors(result)
         end
 
         def destroy
-          authorize!
-          
-          coupon = ::Coupon.find_by(id: params[:id])
-          return render json: { error: 'Not found' }, status: :not_found unless coupon
-
-          if coupon.destroy
+          result = run(::Admin::Coupons::Destroy, params: { id: params[:id] }) do
             head :no_content
+          end
+
+          return if result.success?
+
+          if result[:not_found]
+            render json: { error: "Not found" }, status: :not_found
           else
-            render json: { errors: coupon.errors.to_hash(true) }, status: :unprocessable_entity
+            render_errors(result)
           end
         end
 
         private
 
-        def authorize!
-          return if current_user&.role == 'admin'
-          render json: { error: 'Forbidden' }, status: :forbidden
-        end
+        def authorize_admin! = render(json: { error: "Forbidden" }, status: :forbidden) unless current_user&.role == "admin"
 
-        def coupon_params
-          params.require(:coupon).permit(
-            :code,
-            :coupon_type,
-            :valid_from,
-            :valid_until,
-            :discount_amount,
-            :discount_percentage,
-            :minimum_booking_amount,
-            :max_uses_per_user,
-            :max_total_uses
-          )
-        end
+        def coupon_params = params.require(:coupon).permit(
+          :code,
+          :coupon_type,
+          :valid_from,
+          :valid_until,
+          :discount_amount,
+          :discount_percentage,
+          :minimum_booking_amount,
+          :max_uses_per_user,
+          :max_total_uses
+        )
 
-        def serialize(coupon)
-          {
-            id: coupon.id,
-            code: coupon.code,
-            coupon_type: coupon.coupon_type,
-            valid_from: coupon.valid_from,
-            valid_until: coupon.valid_until,
-            discount_amount: coupon.discount_amount,
-            discount_percentage: coupon.discount_percentage,
-            minimum_booking_amount: coupon.minimum_booking_amount,
-            max_uses_per_user: coupon.max_uses_per_user,
-            max_total_uses: coupon.max_total_uses,
-            is_active: coupon.valid_from <= Time.current && coupon.valid_until >= Time.current
-          }
-        end
+        def render_errors(result) = render(json: { errors: result[:errors] }, status: :unprocessable_entity)
       end
     end
   end

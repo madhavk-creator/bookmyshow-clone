@@ -27,7 +27,7 @@ module Api
       def create
         authorize model_class
 
-        result = run(create_operation, params: permitted_params.to_h) do |operation_result|
+        result = run(create_operation, current_user: current_user, params: permitted_params.to_h) do |operation_result|
           return render json: serialize(operation_result[:model]), status: :created
         end
 
@@ -44,8 +44,8 @@ module Api
 
         result = run(
           update_operation,
-          params: permitted_params.to_h, 
-          model: record 
+          params: permitted_params.to_h,
+          model: record
         ) do |operation_result|
           return render json: serialize(operation_result[:model])
         end
@@ -77,13 +77,9 @@ module Api
       def destroy_operation = raise NotImplementedError
       def serialize(_)      = raise NotImplementedError
 
-      def permitted_params
-        params.require(model_class.name.downcase.to_sym).permit(:name, :code)
-      end
+      def permitted_params = params.require(model_class.name.downcase.to_sym).permit(:name, :code)
 
-      def not_found
-        render json: { error: "#{model_class.name} not found" }, status: :not_found
-      end
+      def not_found = render(json: { error: "#{model_class.name} not found" }, status: :not_found)
     end
   end
 end

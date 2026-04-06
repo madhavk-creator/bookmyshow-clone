@@ -15,17 +15,11 @@ module Api
 
       private
 
-      def operation_class
-        raise NotImplementedError
-      end
+      def operation_class = raise(NotImplementedError)
 
-      def registration_params
-        params.require(:registration).permit(:name, :email, :password, :password_confirmation, :phone)
-      end
+      def registration_params = params.require(:registration).permit(:name, :email, :password, :password_confirmation, :phone)
 
-      def serialize(user)
-        { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
-      end
+      def serialize(user) = { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
     end
   end
 end

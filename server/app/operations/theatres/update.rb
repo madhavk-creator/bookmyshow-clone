@@ -1,5 +1,5 @@
 module Theatres
-  class Update < Trailblazer::Operation
+  class Update < ::Trailblazer::Operation
     step :find_theatre
     step :update_attributes
     step :persist
@@ -8,10 +8,10 @@ module Theatres
     def find_theatre(ctx, params:, **)
       ctx[:model] = Theatre.find_by(id: params[:id])
       unless ctx[:model]
-        ctx[:errors] = { base: ['Theatre not found'] }
+        ctx[:errors] = { base: [ "Theatre not found" ] }
         return false
       end
-      
+
       true
     end
 

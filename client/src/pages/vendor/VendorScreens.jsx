@@ -4,55 +4,43 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Monitor, Plus, Pencil, Trash2, X, Loader, Building2, ChevronDown, Layers, CalendarDays } from 'lucide-react'
 import { selectCurrentUser } from '../../store/authSlice'
-import { api, extractApiError } from '../../utils/api'
+import { useCreateScreenMutation, useDeleteScreenMutation, useGetFormatsQuery, useGetScreensQuery, useGetTheatresQuery, useUpdateScreenMutation } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function VendorScreens() {
   const user = useSelector(selectCurrentUser)
   const navigate = useNavigate()
-  const [theatres, setTheatres] = useState([])
   const [selectedTheatre, setSelectedTheatre] = useState(null)
-  const [screens, setScreens] = useState([])
-  const [formats, setFormats] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [screensLoading, setScreensLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingScreen, setEditingScreen] = useState(null)
   const [formData, setFormData] = useState({ name: '', total_rows: '', total_columns: '', status: 'active', format_ids: [] })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
+  const [createScreen] = useCreateScreenMutation()
+  const [updateScreen] = useUpdateScreenMutation()
+  const [deleteScreen] = useDeleteScreenMutation()
+  const { data: theatres = [], isLoading: theatresLoading } = useGetTheatresQuery(
+    { vendor_id: user?.id },
+    { skip: !user?.id }
+  )
+  const { data: formats = [] } = useGetFormatsQuery()
+  const {
+    data: screens = [],
+    isLoading: screensLoading,
+    isFetching: screensFetching,
+  } = useGetScreensQuery(
+    { theatreId: selectedTheatre?.id },
+    { skip: !selectedTheatre?.id }
+  )
 
   useEffect(() => {
-    async function init() {
-      try {
-        const [{ data: theatreRes }, { data: formatRes }] = await Promise.all([
-          api.get(`/api/v1/theatres?vendor_id=${user?.id}`),
-          api.get('/api/v1/formats'),
-        ])
-        const t = Array.isArray(theatreRes) ? theatreRes : (theatreRes.theatres || [])
-        setTheatres(t)
-        setFormats(Array.isArray(formatRes) ? formatRes : [])
-        if (t.length > 0) setSelectedTheatre(t[0])
-      } catch (err) { console.error(err) }
-      finally { setLoading(false) }
+    if (theatres.length > 0 && !selectedTheatre) {
+      setSelectedTheatre(theatres[0])
     }
-    if (user?.id) init()
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!selectedTheatre) return
-    async function fetchScreens() {
-      setScreensLoading(true)
-      try {
-        const { data } = await api.get(`/api/v1/theatres/${selectedTheatre.id}/screens`)
-        setScreens(Array.isArray(data) ? data : [])
-      } catch (err) { console.error(err) }
-      finally { setScreensLoading(false) }
-    }
-    fetchScreens()
-  }, [selectedTheatre?.id])
+  }, [theatres, selectedTheatre])
 
   const openCreate = () => {
     setEditingScreen(null)
@@ -87,14 +75,12 @@ export default function VendorScreens() {
       }
 
       if (editingScreen) {
-        await api.patch(`/api/v1/theatres/${selectedTheatre.id}/screens/${editingScreen.id}`, { screen: payload })
+        await updateScreen({ theatreId: selectedTheatre.id, screenId: editingScreen.id, screen: payload }).unwrap()
       } else {
-        await api.post(`/api/v1/theatres/${selectedTheatre.id}/screens`, { screen: payload })
+        await createScreen({ theatreId: selectedTheatre.id, screen: payload }).unwrap()
       }
 
       setShowModal(false)
-      const { data: screensData } = await api.get(`/api/v1/theatres/${selectedTheatre.id}/screens`)
-      setScreens(Array.isArray(screensData) ? screensData : [])
     } catch (err) {
       setError(extractApiError(err, 'Operation failed'))
     } finally {
@@ -111,8 +97,7 @@ export default function VendorScreens() {
     })
     if (!confirmed) return
     try {
-      await api.delete(`/api/v1/theatres/${selectedTheatre.id}/screens/${id}`)
-      setScreens(prev => prev.filter(s => s.id !== id))
+      await deleteScreen({ theatreId: selectedTheatre.id, screenId: id }).unwrap()
       showSuccessToast('Screen deleted successfully.')
     } catch (err) {
       console.error(err)
@@ -131,7 +116,7 @@ export default function VendorScreens() {
     }))
   }
 
-  if (loading) {
+  if (theatresLoading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <Loader className="w-10 h-10 text-amber-500 animate-spin" />
@@ -168,7 +153,7 @@ export default function VendorScreens() {
       </div>
 
       {/* Screen cards */}
-      {screensLoading ? (
+      {screensLoading || screensFetching ? (
         <div className="flex justify-center py-20">
           <Loader className="w-10 h-10 text-amber-500 animate-spin" />
         </div>

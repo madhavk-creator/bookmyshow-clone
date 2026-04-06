@@ -1,20 +1,32 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api } from '../utils/api'
-import { useCity } from '../context/CityContext'
-import { Loader, Calendar, MapPin, ChevronRight } from 'lucide-react'
+import { useSelector } from 'react-redux'
+import { Loader, Calendar, MapPin } from 'lucide-react'
+import { useGetCitiesQuery, useGetMovieQuery, useGetShowsQuery } from '../store/apiSlice'
+import { selectSelectedCity } from '../store/citySlice'
 
 export default function PublicShows() {
   const { id: movieId } = useParams()
   const navigate = useNavigate()
-  const { selectedCity } = useCity()
+  const selectedCity = useSelector(selectSelectedCity)
   
   const [dates, setDates] = useState([])
   const [selectedDate, setSelectedDate] = useState('')
-  const [shows, setShows] = useState([])
-  const [movie, setMovie] = useState(null)
-  const [cities, setCities] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data: cities = [] } = useGetCitiesQuery()
+  const { data: movie } = useGetMovieQuery(movieId, { skip: !movieId })
+  const {
+    data: shows = [],
+    isLoading: showsLoading,
+    isFetching: showsFetching,
+  } = useGetShowsQuery(
+    {
+      movie_id: movieId,
+      city_id: selectedCity || undefined,
+      date: selectedDate,
+      per_page: 50,
+    },
+    { skip: !selectedDate }
+  )
 
   // Generate next 7 days starting from today
   useEffect(() => {
@@ -33,36 +45,7 @@ export default function PublicShows() {
     setSelectedDate(nextDates[0].dateStr)
   }, [])
 
-  useEffect(() => {
-    api.get('/api/v1/cities').then(res => setCities(Array.isArray(res.data) ? res.data : (res.data.cities || []))).catch(console.error)
-  }, [])
-
-  useEffect(() => {
-    async function fetchShows() {
-      if (!selectedDate) return
-      setLoading(true)
-      try {
-        const [showsRes, movieRes] = await Promise.all([
-          api.get(`/api/v1/shows`, {
-            params: {
-              movie_id: movieId,
-              city_id: selectedCity || undefined,
-              date: selectedDate,
-              per_page: 50
-            }
-          }),
-          api.get(`/api/v1/movies/${movieId}`)
-        ])
-        setShows(showsRes.data.shows || [])
-        setMovie(movieRes.data)
-      } catch (err) {
-        console.error("Failed to load shows", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchShows()
-  }, [movieId, selectedCity, selectedDate])
+  const loading = showsLoading || showsFetching
 
   // Group by Theatre
   const theatresMap = {}

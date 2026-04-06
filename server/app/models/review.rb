@@ -8,5 +8,5 @@ class Review < ApplicationRecord
   validates :description, presence: true, length: { minimum: 10, maximum: 2000 }
   validates :reviewed_on, presence: true
   validates :user_id, uniqueness: { scope: :movie_id,
-                                    message: 'has already reviewed this movie' }
+                                    message: "has already reviewed this movie" }
 end

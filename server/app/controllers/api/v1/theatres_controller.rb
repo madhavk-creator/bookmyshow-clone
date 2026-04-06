@@ -70,7 +70,7 @@ module Api
         authorize theatre
 
         result = run(Theatres::Destroy, params: { id: params[:id] }) do
-          return render json: { message: 'Theatre deleted successfully' }
+          return render json: { message: "Theatre deleted successfully" }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -78,12 +78,10 @@ module Api
 
       private
 
-      def theatre_params
-        params.require(:theatre).permit(
-          :name, :building_name, :street_address, :pincode,
-          :city_id, :city_name, :city_state, :vendor_id
-        )
-      end
+      def theatre_params = params.require(:theatre).permit(
+        :name, :building_name, :street_address, :pincode,
+        :city_id, :city_name, :city_state, :vendor_id
+      )
 
       def serialize(theatre)
         {
@@ -98,13 +96,9 @@ module Api
         }
       end
 
-      def serialize_many(theatres)
-        theatres.map { |t| serialize(t) }
-      end
+      def serialize_many(theatres) = theatres.map { |t| serialize(t) }
 
-      def not_found
-        render json: { error: 'Theatre not found' }, status: :not_found
-      end
+      def not_found = render(json: { error: "Theatre not found" }, status: :not_found)
     end
   end
 end

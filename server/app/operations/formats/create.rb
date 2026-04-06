@@ -1,5 +1,5 @@
 module Formats
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
     step :build
     step :persist
     fail :collect_errors

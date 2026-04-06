@@ -2,59 +2,44 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, MapPin, Plus, Pencil, Trash2, X, Loader, Layers } from 'lucide-react'
-import { api, extractApiError, getVendors } from '../../utils/api'
+import { useCreateTheatreMutation, useDeleteTheatreMutation, useGetCitiesQuery, useGetTheatresQuery, useGetVendorsQuery, useUpdateTheatreMutation } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function AdminTheatres() {
   const navigate = useNavigate()
-  const [theatres, setTheatres] = useState([])
-  const [cities, setCities] = useState([])
-  const [vendors, setVendors] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingTheatre, setEditingTheatre] = useState(null)
   const [formData, setFormData] = useState({ name: '', building_name: '', street_address: '', pincode: '', city_id: '', vendor_id: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
-
-  const fetchTheatres = async () => {
-    try {
-      const { data } = await api.get('/api/v1/theatres')
-      setTheatres(Array.isArray(data) ? data : (data.theatres || []))
-    } catch (err) {
-      console.error(err)
-      showApiErrorToast(err, 'Failed to load theatres')
-    }
-    finally { setLoading(false) }
-  }
-
-  const fetchCities = async () => {
-    try {
-      const { data } = await api.get('/api/v1/cities')
-      setCities(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error(err)
-      showApiErrorToast(err, 'Failed to load cities')
-    }
-  }
-
-  const fetchVendors = async () => {
-    try {
-      const { data } = await getVendors()
-      setVendors(Array.isArray(data) ? data : (data.vendors || []))
-    } catch (err) {
-      console.error(err)
-      showApiErrorToast(err, 'Failed to load vendors')
-    }
-  }
+  const [createTheatre] = useCreateTheatreMutation()
+  const [updateTheatre] = useUpdateTheatreMutation()
+  const [deleteTheatre] = useDeleteTheatreMutation()
+  const { data: cities = [] } = useGetCitiesQuery()
+  const {
+    data: theatres = [],
+    isLoading: theatresLoading,
+    isFetching: theatresFetching,
+    error: theatresError,
+  } = useGetTheatresQuery()
+  const { data: vendors = [], error: vendorsError } = useGetVendorsQuery()
 
   useEffect(() => {
-    fetchTheatres()
-    fetchCities()
-    fetchVendors()
-  }, [])
+    if (theatresError) {
+      showApiErrorToast(theatresError, 'Failed to load theatres')
+    }
+  }, [theatresError])
+
+  useEffect(() => {
+    if (vendorsError) {
+      showApiErrorToast(vendorsError, 'Failed to load vendors')
+    }
+  }, [vendorsError])
+
+  const loading = theatresLoading || theatresFetching
 
   const getVendorLabel = (vendorId) => {
     const vendor = vendors.find((item) => item.id === vendorId)
@@ -90,13 +75,12 @@ export default function AdminTheatres() {
 
     try {
       if (editingTheatre) {
-        await api.patch(`/api/v1/theatres/${editingTheatre.id}`, { theatre: formData })
+        await updateTheatre({ id: editingTheatre.id, theatre: formData }).unwrap()
       } else {
-        await api.post('/api/v1/theatres', { theatre: formData })
+        await createTheatre(formData).unwrap()
       }
       showSuccessToast(`Theatre ${editingTheatre ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
-      fetchTheatres()
     } catch (err) {
       const message = extractApiError(err, 'Operation failed')
       setError(message)
@@ -115,9 +99,8 @@ export default function AdminTheatres() {
     })
     if (!confirmed) return
     try {
-      await api.delete(`/api/v1/theatres/${id}`)
+      await deleteTheatre(id).unwrap()
       showSuccessToast('Theatre deleted successfully.')
-      fetchTheatres()
     } catch (err) {
       console.error(err)
       showApiErrorToast(err, 'Failed to delete theatre')

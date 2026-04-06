@@ -1,26 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Save, Loader, AlertTriangle, Calendar, Layers, Popcorn, Languages, Video, FileText } from 'lucide-react'
-import { api, extractApiError } from '../../utils/api'
+import { useCreateShowMutation, useGetMoviesQuery, useGetSeatLayoutQuery, useGetSeatLayoutsQuery, useGetShowQuery, useUpdateShowMutation } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
 
 export default function VendorShowEditor() {
   const { theatreId, screenId, showId } = useParams()
   const isEditing = Boolean(showId)
   const navigate = useNavigate()
+  const [createShow] = useCreateShowMutation()
+  const [updateShow] = useUpdateShowMutation()
 
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-
-  // Options
-  const [movies, setMovies] = useState([])
   const [languages, setLanguages] = useState([])
   const [formats, setFormats] = useState([])
-  const [layouts, setLayouts] = useState([])
-  
-  // Selected layout details (for sections)
-  const [selectedLayoutSections, setSelectedLayoutSections] = useState([])
 
   const [formData, setFormData] = useState({
     movie_id: '',
@@ -30,86 +25,63 @@ export default function VendorShowEditor() {
     start_time: '',
     section_prices: [] // { seat_section_id, base_price }
   })
+  const { data: movies = [], isLoading: moviesLoading } = useGetMoviesQuery()
+  const { data: allLayouts = [], isLoading: layoutsLoading } = useGetSeatLayoutsQuery(
+    { theatreId, screenId },
+    { skip: !theatreId || !screenId }
+  )
+  const layouts = allLayouts.filter((layout) => layout.status === 'published')
+  const { data: showData, isLoading: showLoading } = useGetShowQuery(
+    { theatreId, screenId, showId },
+    { skip: !isEditing }
+  )
+  const selectedLayoutId = formData.seat_layout_id || showData?.seat_layout_id || ''
+  const { data: selectedLayoutDetail, isLoading: layoutDetailLoading } = useGetSeatLayoutQuery(
+    { theatreId, screenId, layoutId: selectedLayoutId },
+    { skip: !selectedLayoutId }
+  )
+  const selectedLayoutSections = selectedLayoutDetail?.sections || []
+  const loading = moviesLoading || layoutsLoading || (isEditing && showLoading) || layoutDetailLoading
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true)
-        const [moviesRes, layoutsRes] = await Promise.all([
-          api.get('/api/v1/movies'),
-          api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}/seat_layouts`)
-        ])
-        
-        setMovies(moviesRes.data.movies || moviesRes.data || [])
-        
-        const validLayouts = (layoutsRes.data.seat_layouts || layoutsRes.data || []).filter(l => l.status === 'published')
-        setLayouts(validLayouts)
+    if (!isEditing || !showData || movies.length === 0) return
 
-        if (isEditing) {
-          const showRes = await api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows/${showId}`)
-          const show = showRes.data
-          
-          const loadedMovie = (moviesRes.data.movies || moviesRes.data || []).find(m => m.id === show.movie?.id)
-          if (loadedMovie) {
-            setLanguages(loadedMovie.languages || [])
-            setFormats(loadedMovie.formats || [])
-          }
-          
-          setFormData({
-            movie_id: show.movie?.id || '',
-            movie_language_id: show.language?.id || '',
-            movie_format_id: show.format?.id || '',
-            seat_layout_id: show.seat_layout_id || '',
-            start_time: new Date(new Date(show.start_time).getTime() - new Date(show.start_time).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
-            section_prices: show.section_prices || []
-          })
-          
-          if (show.seat_layout_id) {
-            await fetchLayoutSections(show.seat_layout_id, show.section_prices)
-          }
-        }
-      } catch (err) {
-        setError(extractApiError(err, 'Failed to initialize editor'))
-      } finally {
-        setLoading(false)
-      }
+    const loadedMovie = movies.find((movie) => movie.id === showData.movie?.id)
+    if (loadedMovie) {
+      setLanguages(loadedMovie.languages || [])
+      setFormats(loadedMovie.formats || [])
     }
     
-    fetchData()
-  }, [theatreId, screenId, showId, isEditing])
+    setFormData({
+      movie_id: showData.movie?.id || '',
+      movie_language_id: showData.language?.id || '',
+      movie_format_id: showData.format?.id || '',
+      seat_layout_id: showData.seat_layout_id || '',
+      start_time: new Date(new Date(showData.start_time).getTime() - new Date(showData.start_time).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+      section_prices: showData.section_prices || []
+    })
+  }, [isEditing, movies, showData])
 
-  const fetchLayoutSections = async (layoutId, existingPrices = []) => {
-    try {
-      const res = await api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}/seat_layouts/${layoutId}`)
-      const layoutData = res.data
-      const sections = layoutData.sections || []
-      
-      setSelectedLayoutSections(sections)
-      
-      if (!isEditing || existingPrices.length === 0) {
-        setFormData(prev => ({
-          ...prev,
-          section_prices: sections.map(sec => ({
-            seat_section_id: sec.id,
-            base_price: ''
-          }))
-        }))
-      }
-    } catch (err) {
-      console.error('Failed to fetch layout details', err)
-      setError('Could not load sections for selected layout.')
-      showApiErrorToast(err, 'Could not load sections for selected layout.')
-    }
-  }
+  useEffect(() => {
+    if (!selectedLayoutSections.length) return
+    if (isEditing) return
+
+    setFormData((prev) => ({
+      ...prev,
+      section_prices: selectedLayoutSections.map((section) => ({
+        seat_section_id: section.id,
+        base_price: '',
+      })),
+    }))
+  }, [isEditing, selectedLayoutSections])
 
   const handleLayoutChange = (e) => {
     const layoutId = e.target.value
-    setFormData(prev => ({ ...prev, seat_layout_id: layoutId }))
-    if (layoutId) {
-      fetchLayoutSections(layoutId)
-    } else {
-      setSelectedLayoutSections([])
-    }
+    setFormData(prev => ({
+      ...prev,
+      seat_layout_id: layoutId,
+      section_prices: [],
+    }))
   }
 
   const handleChange = (e) => {
@@ -191,9 +163,9 @@ export default function VendorShowEditor() {
       }
       
       if (isEditing) {
-        await api.patch(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows/${showId}`, payload)
+        await updateShow({ theatreId, screenId, showId, show: payload.show }).unwrap()
       } else {
-        await api.post(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows`, payload)
+        await createShow({ theatreId, screenId, show: payload.show }).unwrap()
       }
       showSuccessToast(`Show ${isEditing ? 'updated' : 'scheduled'} successfully.`)
       navigate(`/vendor/shows/${theatreId}/${screenId}`)

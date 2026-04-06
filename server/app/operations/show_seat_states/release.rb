@@ -1,12 +1,12 @@
 module ShowSeatStates
-  class Release < Trailblazer::Operation
+  class Release < ::Trailblazer::Operation
     step :release_locks
     fail :collect_errors
 
     def release_locks(ctx, params:, **)
       deleted = ShowSeatState.where(
         lock_token: params[:lock_token],
-        status:     'locked'
+        status:     "locked"
       ).delete_all
 
       ctx[:released_count] = deleted
@@ -14,7 +14,7 @@ module ShowSeatStates
     end
 
     def collect_errors(ctx, **)
-      ctx[:errors] = { base: ['Could not release locks'] }
+      ctx[:errors] = { base: [ "Could not release locks" ] }
     end
   end
 end

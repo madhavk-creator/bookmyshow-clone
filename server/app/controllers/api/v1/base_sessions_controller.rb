@@ -18,16 +18,16 @@ module Api
         user = User.find_by(email: email_param)
 
         unless user&.valid_password?(password_param)
-          render json: { error: 'Invalid email or password' }, status: :unauthorized and return
+          render json: { error: "Invalid email or password" }, status: :unauthorized and return
         end
 
         unless user.is_active?
-          render json: { error: 'Account is deactivated. Contact support.' },
+          render json: { error: "Account is deactivated. Contact support." },
                  status: :unauthorized and return
         end
 
         unless user.role == expected_role.to_s
-          render json: { error: 'Invalid email or password' }, status: :unauthorized and return
+          render json: { error: "Invalid email or password" }, status: :unauthorized and return
         end
 
         token = JsonWebToken.encode({ user_id: user.id })
@@ -40,25 +40,15 @@ module Api
 
       private
 
-      def expected_role
-        raise NotImplementedError
-      end
+      def expected_role = raise(NotImplementedError)
 
-      def login_payload
-        params
-      end
+      def login_payload = params
 
-      def email_param
-        login_payload[:email]&.downcase&.strip
-      end
+      def email_param = login_payload[:email]&.downcase&.strip
 
-      def password_param
-        login_payload[:password]
-      end
+      def password_param = login_payload[:password]
 
-      def serialize(user)
-        { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
-      end
+      def serialize(user) = { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
     end
   end
 end

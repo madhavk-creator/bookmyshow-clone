@@ -1,11 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Save, Loader, Plus, Trash2, X, Palette, GripVertical,
   Armchair, Accessibility, Heart, MousePointer, Eraser
 } from 'lucide-react'
-import { api, extractApiError } from '../../utils/api'
+import { useGetSeatLayoutQuery, useSyncSeatLayoutSectionsMutation, useSyncSeatLayoutSeatsMutation } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
 
 const SEAT_KINDS = [
@@ -21,11 +22,16 @@ const DEFAULT_SECTION_COLORS = ['#CEBFF1', '#EF4444', '#3B82F6', '#10B981', '#F5
 export default function AdminSeatLayoutEditor() {
   const { theatreId, screenId, layoutId } = useParams()
   const navigate = useNavigate()
+  const { data: layoutData, isLoading, isFetching, refetch } = useGetSeatLayoutQuery(
+    { theatreId, screenId, layoutId },
+    { skip: !theatreId || !screenId || !layoutId }
+  )
+  const [syncSections] = useSyncSeatLayoutSectionsMutation()
+  const [syncSeats] = useSyncSeatLayoutSeatsMutation()
 
   const [layout, setLayout] = useState(null)
   const [sections, setSections] = useState([])
   const [seats, setSeats] = useState([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [selectedSection, setSelectedSection] = useState(null)
   const [tool, setTool] = useState('paint') // paint | erase
@@ -41,23 +47,19 @@ export default function AdminSeatLayoutEditor() {
   const [isDragging, setIsDragging] = useState(false)
 
   const base = `/api/v1/theatres/${theatreId}/screens/${screenId}/seat_layouts/${layoutId}`
+  const loading = isLoading || isFetching
 
-  const fetchLayout = useCallback(async () => {
-    try {
-      const { data } = await api.get(base)
-      setLayout(data)
-      setSections(data.sections || [])
-      // Flatten seats from sections
-      const allSeats = (data.sections || []).flatMap(sec =>
-        (sec.seats || []).map(s => ({ ...s, seat_section_id: sec.id }))
-      )
-      setSeats(allSeats)
-      setSelectedSection(prev => prev || data.sections?.[0]?.id || null)
-    } catch (err) { console.error(err); setError(extractApiError(err, 'Failed to load layout')) }
-    finally { setLoading(false) }
-  }, [base])
-
-  useEffect(() => { fetchLayout() }, [fetchLayout])
+  useEffect(() => {
+    if (!layoutData) return
+    setLayout(layoutData)
+    setSections(layoutData.sections || [])
+    const allSeats = (layoutData.sections || []).flatMap((section) =>
+      (section.seats || []).map((seat) => ({ ...seat, seat_section_id: section.id }))
+    )
+    setSeats(allSeats)
+    setSelectedSection((prev) => prev || layoutData.sections?.[0]?.id || null)
+    setError(null)
+  }, [layoutData])
 
   // Build a lookup map: "row,col" -> seat
   const seatMap = {}
@@ -154,7 +156,7 @@ export default function AdminSeatLayoutEditor() {
     setSaving(true)
     try {
       const payload = sections.map(({ id, ...rest }) => rest)
-      const { data } = await api.put(`${base}/sections`, { sections: payload })
+      const data = await syncSections({ theatreId, screenId, layoutId, sections: payload }).unwrap()
       
       const serverSections = data.sections || []
       setSections(serverSections)
@@ -195,9 +197,8 @@ export default function AdminSeatLayoutEditor() {
       })
 
       const payload = labeled.map(({ id, label, ...rest }) => rest)
-      await api.put(`${base}/seats`, { seats: payload })
-      // Refresh
-      await fetchLayout()
+      await syncSeats({ theatreId, screenId, layoutId, seats: payload }).unwrap()
+      await refetch()
       showSuccessToast('Seat map saved successfully.')
     } catch (err) { showApiErrorToast(err, 'Save failed') }
     finally { setSaving(false) }

@@ -66,7 +66,7 @@ module Api
         authorize screen
 
         result = run(Screens::Destroy, params: { id: screen.id }) do
-          return render json: { message: 'Screen deleted successfully' }
+          return render json: { message: "Screen deleted successfully" }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -76,7 +76,7 @@ module Api
 
       def find_theatre
         @theatre = Theatre.find_by(id: params[:theatre_id])
-        render json: { error: 'Theatre not found' }, status: :not_found unless @theatre
+        render json: { error: "Theatre not found" }, status: :not_found unless @theatre
       end
 
       def screen_params
@@ -100,9 +100,7 @@ module Api
         }
       end
 
-      def not_found
-        render json: { error: 'Screen not found' }, status: :not_found
-      end
+      def not_found = render(json: { error: "Screen not found" }, status: :not_found)
     end
   end
 end

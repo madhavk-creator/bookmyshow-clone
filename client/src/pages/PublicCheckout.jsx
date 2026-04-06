@@ -1,45 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api } from '../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../utils/toast'
 import { useConfirm } from '../components/ConfirmProvider'
 import { Loader, CheckCircle, CreditCard, Film, Calendar, MapPin, X } from 'lucide-react'
+import { useApplyBookingCouponMutation, useCancelBookingMutation, useConfirmBookingPaymentMutation, useGetBookingQuery, useGetCouponsQuery } from '../store/apiSlice'
 
 export default function PublicCheckout() {
   const { bookingId } = useParams()
   const navigate = useNavigate()
   const confirm = useConfirm()
-  
-  const [booking, setBooking] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [confirmBookingPayment] = useConfirmBookingPaymentMutation()
+  const [cancelBooking] = useCancelBookingMutation()
+  const [applyBookingCoupon] = useApplyBookingCouponMutation()
   const [processing, setProcessing] = useState(false)
-  const [coupons, setCoupons] = useState([])
   const [manualCode, setManualCode] = useState('')
   const [applyingCoupon, setApplyingCoupon] = useState(false)
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [bookingRes, couponsRes] = await Promise.all([
-          api.get(`/api/v1/bookings/${bookingId}`),
-          api.get('/api/v1/coupons')
-        ])
-        setBooking(bookingRes.data)
-        setCoupons(couponsRes.data.coupons || [])
-      } catch (err) {
-        showApiErrorToast(err, 'Failed to fetch details')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [bookingId])
+  const { data: booking, isLoading: bookingLoading } = useGetBookingQuery(bookingId, { skip: !bookingId })
+  const { data: coupons = [], isLoading: couponsLoading } = useGetCouponsQuery()
+  const loading = bookingLoading || couponsLoading
 
   const handleConfirmPayment = async () => {
     setProcessing(true)
     try {
-      const { data } = await api.post(`/api/v1/bookings/${bookingId}/confirm_payment`)
-      setBooking(data)
+      await confirmBookingPayment(bookingId).unwrap()
       showSuccessToast('Payment successful! Your tickets are confirmed.')
     } catch (err) {
       showApiErrorToast(err, 'Payment failed')
@@ -60,8 +43,7 @@ export default function PublicCheckout() {
 
     setProcessing(true)
     try {
-      const { data } = await api.post(`/api/v1/bookings/${bookingId}/cancel`)
-      setBooking(data)
+      await cancelBooking(bookingId).unwrap()
       showSuccessToast('Booking cancelled.')
     } catch (err) {
       showApiErrorToast(err, 'Failed to cancel')
@@ -75,8 +57,7 @@ export default function PublicCheckout() {
     if (!code.trim()) return
     setApplyingCoupon(true)
     try {
-      const { data } = await api.post(`/api/v1/bookings/${bookingId}/apply_coupon`, { coupon_code: code.trim() })
-      setBooking(data)
+      await applyBookingCoupon({ bookingId, couponCode: code.trim() }).unwrap()
       setManualCode('')
       if (code.trim()) {
         showSuccessToast('Coupon applied successfully!')

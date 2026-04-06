@@ -1,5 +1,5 @@
 module SeatLayouts
-  class Index < Trailblazer::Operation
+  class Index < ::Trailblazer::Operation
     step :load_layouts
 
     def load_layouts(ctx, current_user: nil, params: {}, **)

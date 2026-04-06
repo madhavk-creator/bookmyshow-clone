@@ -7,6 +7,6 @@ class CreateMovieLanguages < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :movie_languages, [:movie_id, :language_id], unique: true
+    add_index :movie_languages, [ :movie_id, :language_id ], unique: true
   end
 end

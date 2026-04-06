@@ -1,24 +1,24 @@
 module Admin
   module Coupons
-    class Create < Trailblazer::Operation
+    class Create < ::Trailblazer::Operation
       step :validate_params
       step :create_coupon
 
       def validate_params(ctx, params:, **)
         ctx[:errors] = {}
 
-        [:code, :coupon_type, :valid_from, :valid_until].each do |field|
+        [ :code, :coupon_type, :valid_from, :valid_until ].each do |field|
           if params[field].blank?
-            ctx[:errors][field] = ["can't be blank"]
+            ctx[:errors][field] = [ "can't be blank" ]
           end
         end
 
-        if params[:coupon_type] == 'amount' && params[:discount_amount].blank?
-          ctx[:errors][:discount_amount] = ["must be present for amount coupons"]
+        if params[:coupon_type] == "amount" && params[:discount_amount].blank?
+          ctx[:errors][:discount_amount] = [ "must be present for amount coupons" ]
         end
 
-        if params[:coupon_type] == 'percentage' && params[:discount_percentage].blank?
-          ctx[:errors][:discount_percentage] = ["must be present for percentage coupons"]
+        if params[:coupon_type] == "percentage" && params[:discount_percentage].blank?
+          ctx[:errors][:discount_percentage] = [ "must be present for percentage coupons" ]
         end
 
         return false if ctx[:errors].any?

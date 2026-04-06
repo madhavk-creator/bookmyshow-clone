@@ -1,5 +1,5 @@
 module Cities
-  class Index < Trailblazer::Operation
+  class Index < ::Trailblazer::Operation
     step :load_cities
 
     def load_cities(ctx, current_user: nil, params: {}, **)

@@ -10,15 +10,13 @@ module Api
           current_user: current_user,
           params: { page: params[:page], per_page: params[:per_page] }
         ) do |operation_result|
-          bookings = operation_result[:records].map { |booking| refresh_booking_expiration!(booking) }
-
           return render json: {
-            bookings: bookings.map { |booking| serialize(booking) },
+            bookings: operation_result[:records].map { |booking| serialize(booking) },
             pagination: operation_result[:pagination]
           }
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # GET /api/v1/bookings/:id
@@ -27,7 +25,7 @@ module Api
         return unless booking
 
         authorize booking
-        render json: serialize(refresh_booking_expiration!(booking), detailed: true)
+        render json: serialize(booking.refresh_expiration!, detailed: true)
       end
 
       # POST /api/v1/bookings
@@ -42,41 +40,36 @@ module Api
         if result.success?
           render json: serialize(result[:model], detailed: true), status: :created
         else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+          render_operation_errors(result)
         end
       end
 
-      # POST /api/v1/bookings/:id/confirm_payment
       # Simulates the payment gateway callback.
-      # In production, replace with a real webhook endpoint.
+      # POST /api/v1/bookings/:id/confirm_payment
       def confirm_payment
-        booking = find_booking
-        return unless booking
-
-        authorize booking
-
-        result = Bookings::ConfirmPayment.call(params: { id: booking.id })
+        result = Bookings::ConfirmPayment.call(
+          params: { id: params[:id] },
+          current_user: current_user
+        )
 
         if result.success?
           render json: serialize(result[:model], detailed: true)
         else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+          render_operation_errors(result)
         end
       end
 
       # POST /api/v1/bookings/:id/cancel
       def cancel
-        booking = find_booking
-        return unless booking
-
-        authorize booking
-
-        result = Bookings::Cancel.call(params: { id: booking.id })
+        result = Bookings::Cancel.call(
+          params: { id: params[:id] },
+          current_user: current_user
+        )
 
         if result.success?
           render json: serialize(result[:model], detailed: true)
         else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+          render_operation_errors(result)
         end
       end
 
@@ -95,25 +88,21 @@ module Api
         if result.success?
           render json: serialize(result[:model], detailed: true)
         else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+          render_operation_errors(result)
         end
       end
 
       # POST /api/v1/bookings/:id/tickets/:ticket_id/cancel
       def cancel_ticket
-        booking = find_booking
-        return unless booking
-
-        authorize booking, :cancel_ticket?
-
         result = Bookings::CancelTicket.call(
-          params: { booking_id: booking.id, ticket_id: params[:ticket_id] }
+          params: { booking_id: params[:id], ticket_id: params[:ticket_id] },
+          current_user: current_user
         )
 
         if result.success?
           render json: serialize(result[:model], detailed: true)
         else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+          render_operation_errors(result)
         end
       end
 
@@ -126,27 +115,22 @@ module Api
           tickets: :seat
         ).find_by(id: params[:id])
 
-        render json: { error: 'Booking not found' }, status: :not_found unless booking
+        render_errors({ booking: [ "Not found" ] }, status: :not_found) unless booking
         booking
       end
 
-      def refresh_booking_expiration!(booking)
-        return booking unless booking.status_pending?
+      def booking_params = params.require(:booking).permit(:show_id, :coupon_code, seat_ids: [])
 
-        active_locks = ShowSeatState.where(
-          lock_token: booking.lock_token,
-          status: 'locked'
-        ).where('locked_until >= ?', Time.current)
+      def render_errors(errors, status: :unprocessable_entity) = render(json: { errors: errors }, status:)
 
-        return booking if active_locks.exists?
+      def render_operation_errors(result) = render_errors(result[:errors], status: error_status_for(result[:errors]))
 
-        ShowSeatState.where(lock_token: booking.lock_token, status: 'locked').delete_all
-        booking.update!(status: 'expired')
-        booking
-      end
+      def error_status_for(errors)
+        flat_errors = errors.to_h.values.flatten
+        return :not_found if flat_errors.include?("Not found")
+        return :forbidden if flat_errors.any? { |message| message.to_s.start_with?("Not authorized") }
 
-      def booking_params
-        params.require(:booking).permit(:show_id, :coupon_code, seat_ids: [])
+        :unprocessable_entity
       end
 
       def serialize(booking, detailed: false)

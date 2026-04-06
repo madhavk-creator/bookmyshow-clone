@@ -90,7 +90,7 @@ class ProfileUpdatesTest < ActionDispatch::IntegrationTest
           as: :json
 
     assert_response :unprocessable_entity
-    assert_equal ["is incorrect"], response.parsed_body.dig("errors", "current_password")
+    assert_equal [ "is incorrect" ], response.parsed_body.dig("errors", "current_password")
   end
 
   private

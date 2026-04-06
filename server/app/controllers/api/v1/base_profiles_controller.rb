@@ -18,11 +18,11 @@ module Api
         authorize current_user, :update?
 
         unless password_payload[:current_password].present?
-          return render json: { errors: { current_password: ["can't be blank"] } }, status: :unprocessable_entity
+          return render json: { errors: { current_password: [ "can't be blank" ] } }, status: :unprocessable_entity
         end
 
         unless current_user.valid_password?(password_payload[:current_password])
-          return render json: { errors: { current_password: ['is incorrect'] } }, status: :unprocessable_entity
+          return render json: { errors: { current_password: [ "is incorrect" ] } }, status: :unprocessable_entity
         end
 
         if current_user.update(password_update_params)
@@ -34,31 +34,21 @@ module Api
 
       private
 
-      def expected_role
-        raise NotImplementedError
-      end
+      def expected_role = raise(NotImplementedError)
 
       def ensure_expected_role!
         return if current_user&.role == expected_role.to_s
 
-        render json: { error: 'Forbidden' }, status: :forbidden
+        render json: { error: "Forbidden" }, status: :forbidden
       end
 
-      def profile_params
-        profile_payload.permit(:name, :email, :phone)
-      end
+      def profile_params = profile_payload.permit(:name, :email, :phone)
 
-      def password_update_params
-        password_payload.permit(:password, :password_confirmation)
-      end
+      def password_update_params = password_payload.permit(:password, :password_confirmation)
 
-      def profile_payload
-        extract_payload(:profile, :user, :vendor)
-      end
+      def profile_payload = extract_payload(:profile, :user, :vendor)
 
-      def password_payload
-        extract_payload(:password, :user, :vendor)
-      end
+      def password_payload = extract_payload(:password, :user, :vendor)
 
       def extract_payload(*keys)
         payload = keys.lazy.map { |key| params[key] }.find(&:present?) || params
@@ -72,9 +62,7 @@ module Api
         }
       end
 
-      def serialize(user)
-        { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
-      end
+      def serialize(user) = { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
     end
   end
 end

@@ -99,7 +99,7 @@ module Api
                           id:       params[:screen_id],
                           theatres: { id: params[:theatre_id] }
                         )
-        render json: { error: 'Screen not found' }, status: :not_found unless @screen
+        render json: { error: "Screen not found" }, status: :not_found unless @screen
       end
 
       # Works from both top-level and nested routes.
@@ -126,7 +126,7 @@ module Api
         params.require(:show).permit(
           :movie_id, :seat_layout_id, :movie_language_id,
           :movie_format_id, :start_time,
-          section_prices: [:seat_section_id, :base_price]
+          section_prices: [ :seat_section_id, :base_price ]
         )
       end
 
@@ -134,11 +134,11 @@ module Api
         base = {
           id:             show.id,
           screen_id:      show.screen_id,
-          screen:         { 
-            id: show.screen.id, 
+          screen:         {
+            id: show.screen.id,
             name: show.screen.name,
-            theatre: { 
-              id: show.screen.theatre.id, 
+            theatre: {
+              id: show.screen.theatre.id,
               name: show.screen.theatre.name,
               building_name: show.screen.theatre.building_name,
               street_address: show.screen.theatre.street_address
@@ -168,9 +168,7 @@ module Api
         base
       end
 
-      def not_found
-        render json: { error: 'Show not found' }, status: :not_found
-      end
+      def not_found = render(json: { error: "Show not found" }, status: :not_found)
     end
   end
 end

@@ -1,32 +1,35 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Pencil, Trash2, X, Loader } from 'lucide-react'
-import { api, extractApiError } from '../utils/api'
+import { extractApiError } from '../utils/api'
+import { useCreateReferenceItemMutation, useDeleteReferenceItemMutation, useGetReferenceItemsQuery, useUpdateReferenceItemMutation } from '../store/apiSlice'
 import { showApiErrorToast, showSuccessToast } from '../utils/toast'
 import { useConfirm } from './ConfirmProvider'
 
 export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon, fields, color = 'rose' }) {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [formData, setFormData] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
+  const [createReferenceItem] = useCreateReferenceItemMutation()
+  const [updateReferenceItem] = useUpdateReferenceItemMutation()
+  const [deleteReferenceItem] = useDeleteReferenceItemMutation()
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+    error: itemsError,
+  } = useGetReferenceItemsQuery(apiPath)
 
-  const fetchItems = async () => {
-    try {
-      const { data } = await api.get(`/api/v1/${apiPath}`)
-      setItems(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error(err)
-      showApiErrorToast(err, `Failed to load ${entityName.toLowerCase()}`)
+  useEffect(() => {
+    if (itemsError) {
+      showApiErrorToast(itemsError, `Failed to load ${entityName.toLowerCase()}`)
     }
-    finally { setLoading(false) }
-  }
+  }, [entityName, itemsError])
 
-  useEffect(() => { fetchItems() }, [])
+  const loading = isLoading || isFetching
 
   const openCreate = () => {
     setEditing(null)
@@ -52,15 +55,13 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
     setError(null)
     try {
       const key = paramKey || apiPath.replace(/s$/, '')
-      const url = editing ? `/api/v1/${apiPath}/${editing.id}` : `/api/v1/${apiPath}`
       if (editing) {
-        await api.patch(url, { [key]: formData })
+        await updateReferenceItem({ apiPath, id: editing.id, paramKey: key, payload: formData }).unwrap()
       } else {
-        await api.post(url, { [key]: formData })
+        await createReferenceItem({ apiPath, paramKey: key, payload: formData }).unwrap()
       }
       showSuccessToast(`${entityName.replace(/ies$/, 'y').replace(/s$/, '')} ${editing ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
-      fetchItems()
     } catch (err) {
       const message = extractApiError(err, 'Operation failed')
       setError(message)
@@ -78,9 +79,8 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
     })
     if (!confirmed) return
     try {
-      await api.delete(`/api/v1/${apiPath}/${id}`)
+      await deleteReferenceItem({ apiPath, id }).unwrap()
       showSuccessToast(`${entityName.replace(/ies$/, 'y').replace(/s$/, '')} deleted successfully.`)
-      fetchItems()
     } catch (err) {
       console.error(err)
       showApiErrorToast(err, 'Delete failed')

@@ -14,7 +14,7 @@
 #   section_prices: [{ seat_section_id: uuid, base_price: decimal }, ...]
 
 module Shows
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
     step :find_screen
     step :find_movie
     step :find_layout
@@ -30,7 +30,7 @@ module Shows
     def find_screen(ctx, params:, **)
       ctx[:screen] = Screen.find_by(id: params[:screen_id])
       unless ctx[:screen]&.active?
-        ctx[:errors] = { screen: ['Screen not found or inactive'] }
+        ctx[:errors] = { screen: [ "Screen not found or inactive" ] }
         return false
       end
     true
@@ -39,7 +39,7 @@ module Shows
     def find_movie(ctx, params:, **)
       ctx[:movie] = Movie.find_by(id: params[:movie_id])
       unless ctx[:movie]
-        ctx[:errors] = { movie: ['Movie not found'] }
+        ctx[:errors] = { movie: [ "Movie not found" ] }
         return false
       end
     true
@@ -49,17 +49,17 @@ module Shows
       ctx[:layout] = SeatLayout.find_by(id: params[:seat_layout_id])
 
       unless ctx[:layout]
-        ctx[:errors] = { seat_layout_id: ['Layout not found'] }
+        ctx[:errors] = { seat_layout_id: [ "Layout not found" ] }
         return false
       end
 
       unless ctx[:layout].screen_id == screen.id
-        ctx[:errors] = { seat_layout_id: ['Layout does not belong to this screens'] }
+        ctx[:errors] = { seat_layout_id: [ "Layout does not belong to this screens" ] }
         return false
       end
 
       unless ctx[:layout].status_published?
-        ctx[:errors] = { seat_layout_id: ['Only published layouts can be used for shows'] }
+        ctx[:errors] = { seat_layout_id: [ "Only published layouts can be used for shows" ] }
         return false
       end
     true
@@ -71,7 +71,7 @@ module Shows
         movie_id: movie.id
       )
       unless ctx[:movie_language]
-        ctx[:errors] = { movie_language_id: ['Language not found for this movies'] }
+        ctx[:errors] = { movie_language_id: [ "Language not found for this movies" ] }
         return false
       end
     true
@@ -83,7 +83,7 @@ module Shows
         movie_id: movie.id
       )
       unless ctx[:movie_format]
-        ctx[:errors] = { movie_format_id: ['Format not found for this movies'] }
+        ctx[:errors] = { movie_format_id: [ "Format not found for this movies" ] }
         return false
       end
     true
@@ -94,7 +94,7 @@ module Shows
       supported = screen.screen_capabilities
                         .exists?(format_id: movie_format.format_id)
       unless supported
-        ctx[:errors] = { movie_format_id: ['This screens does not support the selected formats'] }
+        ctx[:errors] = { movie_format_id: [ "This screens does not support the selected formats" ] }
         return false
       end
     true
@@ -106,7 +106,7 @@ module Shows
       start_time = Time.zone.parse(params[:start_time].to_s)
 
       unless start_time
-        ctx[:errors] = { start_time: ['is invalid'] }
+        ctx[:errors] = { start_time: [ "is invalid" ] }
         return false
       end
 
@@ -115,12 +115,12 @@ module Shows
       ctx[:start_time] = start_time
       ctx[:end_time]   = end_time
 
-      overlap = ::Show.where(screen_id: screen.id, status: 'scheduled')
-                      .where('start_time < ? AND end_time > ?', end_time, start_time)
+      overlap = ::Show.where(screen_id: screen.id, status: "scheduled")
+                      .where("start_time < ? AND end_time > ?", end_time, start_time)
                       .exists?
 
       if overlap
-        ctx[:errors] = { start_time: ['This screen already has a show scheduled during this time'] }
+        ctx[:errors] = { start_time: [ "This screen already has a show scheduled during this time" ] }
         return false
       end
 
@@ -137,7 +137,7 @@ module Shows
         start_time:       start_time,
         end_time:         end_time,
         total_capacity:   layout.total_seats,
-        status:           'scheduled'
+        status:           "scheduled"
       )
     end
 
@@ -147,22 +147,22 @@ module Shows
       price_entries = Array(params[:section_prices])
 
       if price_entries.empty?
-        ctx[:errors] = { section_prices: ['Section prices are required'] }
+        ctx[:errors] = { section_prices: [ "Section prices are required" ] }
         return false
       end
 
       layout_section_ids = layout.seat_sections.pluck(:id).sort
-      provided_ids       = price_entries.map { |e| e[:seat_section_id] || e['seat_section_id'] }.sort
+      provided_ids       = price_entries.map { |e| e[:seat_section_id] || e["seat_section_id"] }.sort
 
       missing = layout_section_ids - provided_ids
       if missing.any?
-        ctx[:errors] = { section_prices: ["Missing prices for section IDs: #{missing.join(', ')}"] }
+        ctx[:errors] = { section_prices: [ "Missing prices for section IDs: #{missing.join(', ')}" ] }
         return false
       end
 
       extra = provided_ids - layout_section_ids
       if extra.any?
-        ctx[:errors] = { section_prices: ["Unknown section IDs for this layout: #{extra.join(', ')}"] }
+        ctx[:errors] = { section_prices: [ "Unknown section IDs for this layout: #{extra.join(', ')}" ] }
         return false
       end
     true
@@ -176,15 +176,15 @@ module Shows
 
         price_entries.each do |entry|
           model.show_section_prices.create!(
-            seat_section_id: entry[:seat_section_id] || entry['seat_section_id'],
-            base_price:      entry[:base_price]       || entry['base_price']
+            seat_section_id: entry[:seat_section_id] || entry["seat_section_id"],
+            base_price:      entry[:base_price]       || entry["base_price"]
           )
         end
       end
 
       true
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
-      ctx[:errors] = { section_prices: [e.message] }
+      ctx[:errors] = { section_prices: [ e.message ] }
       false
     end
 

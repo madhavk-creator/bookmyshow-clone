@@ -12,7 +12,7 @@ module Pagination
   def per_page(params)
     value = params[:per_page].to_i
     value = DEFAULT_PER_PAGE if value <= 0
-    [value, MAX_PER_PAGE].min
+    [ value, MAX_PER_PAGE ].min
   end
 
   def apply(scope, params)

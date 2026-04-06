@@ -15,8 +15,11 @@
 # ExpireSeatLocksJob handles cleanup.
 
 module Bookings
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
+    include CouponSupport
+
     step :find_show
+    step :validate_requested_seats
     step :resolve_coupon
     step :build_lock_token
     step :lock_seats
@@ -32,15 +35,62 @@ module Bookings
       ).find_by(id: params[:show_id])
 
       unless ctx[:show]&.status_scheduled?
-        ctx[:errors] = { show: ['Show not found or not available for booking'] }
+        ctx[:errors] = { show: [ "Show not found or not available for booking" ] }
         return false
       end
 
       unless ctx[:show].start_time > Time.current
-        ctx[:errors] = { show: ['This show has already started'] }
+        ctx[:errors] = { show: [ "This show has already started" ] }
         return false
       end
 
+      true
+    end
+
+    def validate_requested_seats(ctx, params:, show:, **)
+      seat_ids = Array(params[:seat_ids]).compact
+
+      if seat_ids.empty?
+        ctx[:errors] = { seat_ids: [ "must include at least one seat" ] }
+        return false
+      end
+
+      if seat_ids.uniq.size != seat_ids.size
+        ctx[:errors] = { seat_ids: [ "contains duplicate seat IDs" ] }
+        return false
+      end
+
+      section_by_seat = show.seat_layout.seats
+                            .where(id: seat_ids)
+                            .includes(:seat_section)
+                            .index_by(&:id)
+
+      missing_seat_ids = seat_ids.map(&:to_s) - section_by_seat.keys.map(&:to_s)
+      if missing_seat_ids.any?
+        ctx[:errors] = { seat_ids: [ "Unknown seat IDs: #{missing_seat_ids.join(', ')}" ] }
+        return false
+      end
+
+      inactive_seat_ids = section_by_seat.values.reject(&:is_active).map(&:id)
+      if inactive_seat_ids.any?
+        ctx[:errors] = { seat_ids: [ "Inactive seat IDs: #{inactive_seat_ids.join(', ')}" ] }
+        return false
+      end
+
+      price_by_section = show.show_section_prices.index_by(&:seat_section_id)
+      unpriced_section_ids = section_by_seat.values
+                                            .map(&:seat_section_id)
+                                            .uniq
+                                            .reject { |section_id| price_by_section.key?(section_id) }
+
+      if unpriced_section_ids.any?
+        ctx[:errors] = { seat_ids: [ "Missing prices for section IDs: #{unpriced_section_ids.join(', ')}" ] }
+        return false
+      end
+
+      ctx[:seat_ids] = seat_ids
+      ctx[:section_by_seat] = section_by_seat
+      ctx[:price_by_section] = price_by_section
       true
     end
 
@@ -48,33 +98,22 @@ module Bookings
       ctx[:coupon] = nil
       return true if params[:coupon_code].blank?
 
-      coupon = Coupon.find_by(code: params[:coupon_code].upcase.strip)
-      unless coupon
-        ctx[:errors] = { coupon_code: ['Coupon not found'] }
-        return false
-      end
-
-      # Per-user usage check
-      if coupon.max_uses_per_user.present?
-        used_count = UserCouponUsage.where(coupon: coupon, user: current_user).count
-        if used_count >= coupon.max_uses_per_user
-          ctx[:errors] = { coupon_code: ['You have already used this coupon the maximum number of times'] }
-          return false
-        end
-      end
+      coupon = resolve_coupon_by_code(ctx, coupon_code: params[:coupon_code])
+      return false if coupon.nil?
 
       ctx[:coupon] = coupon
+      true
     end
 
     def build_lock_token(ctx, **)
       ctx[:lock_token] = SecureRandom.uuid
     end
 
-    def lock_seats(ctx, params:, current_user:, show:, lock_token:, **)
+    def lock_seats(ctx, current_user:, show:, lock_token:, seat_ids:, **)
       result = ShowSeatStates::Lock.call(
         params: {
           show_id:    show.id,
-          seat_ids:   params[:seat_ids],
+          seat_ids:,
           user_id:    current_user.id,
           lock_token: lock_token
         }
@@ -88,18 +127,7 @@ module Bookings
       ctx[:locked_states] = result[:locked_states]
     end
 
-    def calculate_total(ctx, params:, show:, coupon:, **)
-      seat_ids = Array(params[:seat_ids])
-
-      # Build a map of seat_id → section_id → base_price
-      section_by_seat = show.seat_layout.seats
-                            .where(id: seat_ids)
-                            .includes(:seat_section)
-                            .index_by(&:id)
-
-      price_by_section = show.show_section_prices
-                             .index_by(&:seat_section_id)
-
+    def calculate_total(ctx, seat_ids:, section_by_seat:, price_by_section:, coupon:, current_user:, **)
       subtotal = seat_ids.sum do |seat_id|
         seat    = section_by_seat[seat_id]
         section = seat&.seat_section
@@ -107,19 +135,16 @@ module Bookings
         price.to_d
       end
 
-      # Validate coupon minimum now that we have the subtotal
-      if coupon && !coupon.applicable?(subtotal)
-        ctx[:errors] = { coupon_code: ['Coupon is not applicable to this booking'] }
+      if coupon && !validate_coupon_for_user(ctx:, coupon:, current_user:, subtotal:)
         return false
       end
 
       ctx[:subtotal]     = subtotal
-      ctx[:total_amount] = coupon ? coupon.apply(subtotal) : subtotal
-      ctx[:section_by_seat] = section_by_seat
-      ctx[:price_by_section] = price_by_section
+      ctx[:total_amount] = coupon_total(subtotal, coupon)
+      true
     end
 
-    def persist_booking_bundle(ctx, params:, current_user:, show:, coupon:, subtotal:, total_amount:, lock_token:, section_by_seat:, price_by_section:, **)
+    def persist_booking_bundle(ctx, current_user:, show:, coupon:, subtotal:, total_amount:, lock_token:, seat_ids:, section_by_seat:, price_by_section:, **)
       booking_persisted = false
 
       ActiveRecord::Base.transaction do
@@ -131,22 +156,23 @@ module Bookings
         )
 
         raise ActiveRecord::Rollback if ctx[:errors].present?
+        raise ActiveRecord::Rollback unless validate_coupon_global_usage!(ctx:, coupon:, exclude_booking_id: nil)
 
-        total_amount = coupon ? coupon.apply(subtotal) : total_amount
+        total_amount = coupon_total(subtotal, coupon)
 
         booking = ::Booking.create!(
           user:         current_user,
           show:         show,
           coupon:       coupon,
           total_amount: total_amount,
-          status:       'pending',
+          status:       "pending",
           lock_token:   lock_token
         )
 
         create_tickets!(
           booking:          booking,
           show:             show,
-          seat_ids:         Array(params[:seat_ids]),
+          seat_ids:         seat_ids,
           section_by_seat:  section_by_seat,
           price_by_section: price_by_section
         )
@@ -155,10 +181,10 @@ module Bookings
           booking: booking,
           user:    current_user,
           amount:  total_amount,
-          status:  'pending'
+          status:  "pending"
         )
 
-        record_coupon_usage!(booking: booking, coupon: coupon, current_user: current_user)
+        rewrite_coupon_usage!(booking:, coupon:, current_user:)
 
         ctx[:model] = booking
         ctx[:payment] = payment
@@ -167,7 +193,7 @@ module Bookings
 
       booking_persisted
     rescue ActiveRecord::RecordInvalid => e
-      ctx[:errors] = { base: [e.message] }
+      ctx[:errors] = { base: [ e.message ] }
       false
     end
 
@@ -184,41 +210,9 @@ module Bookings
           seat_label:   seat.label,
           section_name: section&.name,
           price:        price,
-          status:       'valid'
+          status:       "valid"
         )
       end
-    end
-
-    def record_coupon_usage!(booking:, coupon:, current_user:)
-      return if coupon.nil?
-
-      UserCouponUsage.create!(
-        coupon:  coupon,
-        user:    current_user,
-        booking: booking,
-        used_at: Time.current
-      )
-    end
-
-    def lock_and_validate_coupon!(ctx:, coupon:, current_user:, subtotal:)
-      return nil if coupon.nil?
-
-      coupon = Coupon.lock.find(coupon.id)
-
-      unless coupon.applicable?(subtotal)
-        ctx[:errors] = { coupon_code: ['Coupon is not applicable to this booking'] }
-        return nil
-      end
-
-      if coupon.max_uses_per_user.present?
-        used_count = UserCouponUsage.where(coupon: coupon, user: current_user).count
-        if used_count >= coupon.max_uses_per_user
-          ctx[:errors] = { coupon_code: ['You have already used this coupon the maximum number of times'] }
-          return nil
-        end
-      end
-
-      coupon
     end
 
     # If any step after lock_seats fails, release the acquired locks
@@ -229,7 +223,7 @@ module Bookings
     end
 
     def collect_errors(ctx, model: nil, **)
-      ctx[:errors] ||= model&.errors&.to_hash(true) || { base: ['Booking could not be created'] }
+      ctx[:errors] ||= model&.errors&.to_hash(true) || { base: [ "Booking could not be created" ] }
     end
   end
 end

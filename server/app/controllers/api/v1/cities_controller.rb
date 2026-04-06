@@ -58,7 +58,7 @@ module Api
         authorize city
 
         result = run(Cities::Destroy, params: { id: params[:id] }) do
-          return render json: { message: 'City deleted successfully' }
+          return render json: { message: "City deleted successfully" }
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -66,9 +66,7 @@ module Api
 
       private
 
-      def city_params
-        params.require(:city).permit(:name, :state)
-      end
+      def city_params = params.require(:city).permit(:name, :state)
 
       def serialize(city)
         {
@@ -78,13 +76,9 @@ module Api
         }
       end
 
-      def serialize_many(cities)
-        cities.map { |c| serialize(c) }
-      end
+      def serialize_many(cities) = cities.map { |c| serialize(c) }
 
-      def not_found
-        render json: { error: 'City not found' }, status: :not_found
-      end
+      def not_found = render(json: { error: "City not found" }, status: :not_found)
     end
   end
 end

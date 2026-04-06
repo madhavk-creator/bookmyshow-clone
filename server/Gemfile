@@ -55,7 +55,7 @@ gem "trailblazer", "~> 2.1"
 
 gem "pundit", "~> 2.5"
 
-gem 'trailblazer-rails'
+gem "trailblazer-rails"
 
 gem "dotenv-rails", "~> 3.2", require: "dotenv/load"
 
@@ -64,3 +64,5 @@ gem "jwt", "~> 3.1"
 gem "sidekiq", "~> 7.0"
 
 gem "sidekiq-cron", "~> 2.3"
+
+gem "rspec", "~> 3.13"

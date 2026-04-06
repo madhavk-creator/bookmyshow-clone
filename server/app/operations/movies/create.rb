@@ -1,5 +1,7 @@
 module Movies
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
+    include AssociationValidationSupport
+
     step :build_movie
     step :validate_languages
     step :validate_formats
@@ -8,89 +10,26 @@ module Movies
     fail :collect_errors
 
     def build_movie(ctx, params:, **)
-      ctx[:model] = ::Movie.new(
-        title:        params[:title],
-        genre:        params[:genre],
-        rating:       params[:rating],
-        description:  params[:description],
-        director:     params[:director],
-        running_time: params[:running_time],
-        release_date: params[:release_date]
-      )
+      ctx[:model] = ::Movie.new(movie_attributes(params))
+      true
     end
 
     def validate_languages(ctx, params:, **)
-      entries = Array(params[:language_entries])
-      return true if entries.empty?
-
-      language_ids = entries.map { |e| e[:language_id] || e['language_id'] }.uniq
-      valid_ids    = Language.where(id: language_ids).pluck(:id)
-      invalid      = language_ids - valid_ids
-
-      if invalid.any?
-        ctx[:errors] = { language_entries: ["Unknown languages IDs: #{invalid.join(', ')}"] }
-        return false
-      end
-
-      valid_types = %w[original dubbed subtitled]
-      entries.each do |entry|
-        type = entry[:type] || entry['type']
-        unless valid_types.include?(type.to_s)
-          ctx[:errors] = { language_entries: ["Invalid type '#{type}'. Must be one of: #{valid_types.join(', ')}"] }
-          return false
-        end
-      end
-
-      ctx[:language_entries] = entries.map do |entry|
-        {
-          language_id: entry[:language_id] || entry['language_id'],
-          language_type: entry[:type] || entry['type']
-        }
-      end
-
-      true
+      valid, payload = validate_language_entries(ctx, params[:language_entries])
+      ctx[:language_entries] = payload if valid
+      valid
     end
 
     def validate_formats(ctx, params:, **)
-      format_ids = Array(params[:format_ids]).uniq
-      return true if format_ids.empty?
-
-      valid_ids = Format.where(id: format_ids).pluck(:id)
-      invalid   = format_ids - valid_ids
-
-      if invalid.any?
-        ctx[:errors] = { format_ids: ["Unknown formats IDs: #{invalid.join(', ')}"] }
-        return false
-      end
-
-      ctx[:format_ids] = format_ids
-
-      true
+      valid, payload = validate_format_ids(ctx, params[:format_ids])
+      ctx[:format_ids] = payload if valid
+      valid
     end
 
     def validate_cast_members(ctx, params:, **)
-      members = Array(params[:cast_members])
-      return true if members.empty?
-
-      valid_roles = %w[actor director producer writer composer]
-
-      members.each do |member|
-        role = member[:role] || member['role']
-        unless valid_roles.include?(role.to_s)
-          ctx[:errors] = { cast_members: ["Invalid role '#{role}'. Must be one of: #{valid_roles.join(', ')}"] }
-          return false
-        end
-      end
-
-      ctx[:cast_members] = members.map do |member|
-        {
-          name: member[:name] || member['name'],
-          role: member[:role] || member['role'],
-          character_name: member[:character_name] || member['character_name']
-        }
-      end
-
-      true
+      valid, payload = validate_cast_member_entries(ctx, params[:cast_members])
+      ctx[:cast_members] = payload.map { |member| member.except(:id) } if valid
+      valid
     end
 
     def persist_changes(ctx, model:, **)
@@ -111,7 +50,7 @@ module Movies
       end
 
       true
-    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+    rescue ActiveRecord::ActiveRecordError => e
       ctx[:errors] = extract_errors(e, model)
       false
     end
@@ -120,11 +59,25 @@ module Movies
       record = error.respond_to?(:record) ? error.record : nil
       return record.errors.to_hash(true) if record&.errors&.any?
 
-      model.errors.to_hash(true).presence || { base: [error.message] }
+      model.errors.to_hash(true).presence || { base: [ error.message ] }
     end
 
     def collect_errors(ctx, model: nil, **)
       ctx[:errors] ||= model&.errors&.to_hash(true) || {}
+    end
+
+    private
+
+    def movie_attributes(params)
+      {
+        title: params[:title],
+        genre: params[:genre],
+        rating: params[:rating],
+        description: params[:description],
+        director: params[:director],
+        running_time: params[:running_time],
+        release_date: params[:release_date]
+      }
     end
   end
 end

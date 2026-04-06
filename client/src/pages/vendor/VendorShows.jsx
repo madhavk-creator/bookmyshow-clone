@@ -1,41 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CalendarDays, Plus, Calendar, Clock, ChevronLeft, Loader, Video, AlertTriangle } from 'lucide-react'
-import { api, extractApiError } from '../../utils/api'
+import { useCancelShowMutation, useGetScreenQuery, useGetScreenShowsQuery } from '../../store/apiSlice'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function VendorShows() {
   const { theatreId, screenId } = useParams()
   const navigate = useNavigate()
+  const [cancelShow] = useCancelShowMutation()
   
-  const [screen, setScreen] = useState(null)
-  const [shows, setShows] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const confirm = useConfirm()
-  
-  useEffect(() => {
-    async function fetchScreenAndShows() {
-      try {
-        setLoading(true)
-        const [screenRes, showsRes] = await Promise.all([
-          api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}`),
-          api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows`)
-        ])
-        
-        setScreen(screenRes.data)
-        setShows(showsRes.data.shows || [])
-      } catch (err) {
-        setError(extractApiError(err, 'Failed to load shows'))
-      } finally {
-        setLoading(false)
-      }
-    }
-    
-    fetchScreenAndShows()
-  }, [theatreId, screenId])
+  const { data: screen, error: screenError } = useGetScreenQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
+  const {
+    data: shows = [],
+    isLoading: showsLoading,
+    isFetching: showsFetching,
+    error: showsError,
+  } = useGetScreenShowsQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
+  const loading = showsLoading || showsFetching
+  const error = screenError || showsError ? extractApiError(screenError || showsError, 'Failed to load shows') : null
   
   const handleCancelShow = async (showId) => {
     const confirmed = await confirm({
@@ -47,10 +33,7 @@ export default function VendorShows() {
     if (!confirmed) return
     
     try {
-      await api.post(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows/${showId}/cancel`)
-      // Refresh shows
-      const showsRes = await api.get(`/api/v1/theatres/${theatreId}/screens/${screenId}/shows`)
-      setShows(showsRes.data.shows || [])
+      await cancelShow({ theatreId, screenId, showId }).unwrap()
       showSuccessToast('Show cancelled successfully.')
     } catch (err) {
       showApiErrorToast(err, 'Failed to cancel show')

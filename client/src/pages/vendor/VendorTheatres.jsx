@@ -2,50 +2,41 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Building2, Plus, Pencil, Trash2, X, Loader, MapPin } from 'lucide-react'
+import { useCreateTheatreMutation, useDeleteTheatreMutation, useGetCitiesQuery, useGetTheatresQuery, useUpdateTheatreMutation } from '../../store/apiSlice'
 import { selectCurrentUser } from '../../store/authSlice'
-import { api, extractApiError } from '../../utils/api'
+import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function VendorTheatres() {
   const user = useSelector(selectCurrentUser)
-  const [theatres, setTheatres] = useState([])
-  const [cities, setCities] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingTheatre, setEditingTheatre] = useState(null)
   const [formData, setFormData] = useState({ name: '', building_name: '', street_address: '', pincode: '', city_id: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
-
-  const fetchTheatres = async () => {
-    try {
-      const { data } = await api.get(`/api/v1/theatres?vendor_id=${user?.id}`)
-      setTheatres(Array.isArray(data) ? data : (data.theatres || []))
-    } catch (err) {
-      console.error(err)
-      showApiErrorToast(err, 'Failed to load theatres')
-    }
-    finally { setLoading(false) }
-  }
-
-  const fetchCities = async () => {
-    try {
-      const { data } = await api.get('/api/v1/cities')
-      setCities(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error(err)
-      showApiErrorToast(err, 'Failed to load cities')
-    }
-  }
+  const [createTheatre] = useCreateTheatreMutation()
+  const [updateTheatre] = useUpdateTheatreMutation()
+  const [deleteTheatre] = useDeleteTheatreMutation()
+  const { data: cities = [] } = useGetCitiesQuery()
+  const {
+    data: theatres = [],
+    isLoading: theatresLoading,
+    isFetching: theatresFetching,
+    error: theatresError,
+  } = useGetTheatresQuery(
+    { vendor_id: user?.id },
+    { skip: !user?.id }
+  )
 
   useEffect(() => {
-    if (user?.id) {
-      fetchTheatres()
-      fetchCities()
+    if (theatresError) {
+      showApiErrorToast(theatresError, 'Failed to load theatres')
     }
-  }, [user?.id])
+  }, [theatresError])
+
+  const loading = theatresLoading || theatresFetching
 
   const openCreate = () => {
     setEditingTheatre(null)
@@ -74,14 +65,13 @@ export default function VendorTheatres() {
 
     try {
       if (editingTheatre) {
-        await api.patch(`/api/v1/theatres/${editingTheatre.id}`, { theatre: formData })
+        await updateTheatre({ id: editingTheatre.id, theatre: formData }).unwrap()
       } else {
-        await api.post('/api/v1/theatres', { theatre: formData })
+        await createTheatre(formData).unwrap()
       }
 
       showSuccessToast(`Theatre ${editingTheatre ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
-      fetchTheatres()
     } catch (err) {
       const message = extractApiError(err, 'Operation failed')
       setError(message)
@@ -100,9 +90,8 @@ export default function VendorTheatres() {
     })
     if (!confirmed) return
     try {
-      await api.delete(`/api/v1/theatres/${id}`)
+      await deleteTheatre(id).unwrap()
       showSuccessToast('Theatre deleted successfully.')
-      fetchTheatres()
     } catch (err) {
       console.error(err)
       showApiErrorToast(err, 'Failed to delete theatre')

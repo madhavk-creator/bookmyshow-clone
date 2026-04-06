@@ -1,68 +1,28 @@
-import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Building2, Monitor, Ticket, TrendingUp } from 'lucide-react'
 import { selectCurrentUser } from '../../store/authSlice'
-import { api, getVendorIncome } from '../../utils/api'
+import { useGetTheatresQuery, useGetVendorIncomeQuery } from '../../store/apiSlice'
 
 export default function VendorDashboard() {
   const user = useSelector(selectCurrentUser)
-  const [theatres, setTheatres] = useState([])
-  const [income, setIncome] = useState({
-    theatres_count: 0,
-    completed_bookings_count: 0,
-    tickets_sold_count: 0,
-    gross_income: 0,
-    refund_amount: 0,
-    total_income: 0,
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchDashboard() {
-      setLoading(true)
-
-      try {
-        const [theatresResult, incomeResult] = await Promise.allSettled([
-          api.get(`/api/v1/theatres?vendor_id=${user?.id}`),
-          getVendorIncome(user.id),
-        ])
-
-        if (theatresResult.status === 'fulfilled') {
-          const { data } = theatresResult.value
-          setTheatres(Array.isArray(data) ? data : (data.theatres || []))
-        } else {
-          console.error(theatresResult.reason)
-          setTheatres([])
-        }
-
-        if (incomeResult.status === 'fulfilled') {
-          setIncome({
-            theatres_count: incomeResult.value.data?.theatres_count ?? 0,
-            completed_bookings_count: incomeResult.value.data?.completed_bookings_count ?? 0,
-            tickets_sold_count: incomeResult.value.data?.tickets_sold_count ?? 0,
-            gross_income: incomeResult.value.data?.gross_income ?? 0,
-            refund_amount: incomeResult.value.data?.refund_amount ?? 0,
-            total_income: incomeResult.value.data?.total_income ?? 0,
-          })
-        } else {
-          console.error(incomeResult.reason)
-          setIncome({
-            theatres_count: 0,
-            completed_bookings_count: 0,
-            tickets_sold_count: 0,
-            gross_income: 0,
-            refund_amount: 0,
-            total_income: 0,
-          })
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (user?.id) fetchDashboard()
-  }, [user?.id])
+  const { data: theatres = [], isLoading: theatresLoading, isFetching: theatresFetching } = useGetTheatresQuery(
+    { vendor_id: user?.id },
+    { skip: !user?.id }
+  )
+  const {
+    data: income = {
+      theatres_count: 0,
+      completed_bookings_count: 0,
+      tickets_sold_count: 0,
+      gross_income: 0,
+      refund_amount: 0,
+      total_income: 0,
+    },
+    isLoading: incomeLoading,
+    isFetching: incomeFetching,
+  } = useGetVendorIncomeQuery(user?.id, { skip: !user?.id })
+  const loading = theatresLoading || theatresFetching || incomeLoading || incomeFetching
 
   const formatCurrency = (value) => {
     const amount = Number(value || 0)

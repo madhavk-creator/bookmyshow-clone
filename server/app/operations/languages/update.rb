@@ -1,5 +1,5 @@
 module Languages
-  class Update < Trailblazer::Operation
+  class Update < ::Trailblazer::Operation
     step :assign
     step :persist
     fail :collect_errors

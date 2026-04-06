@@ -1,32 +1,17 @@
-import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api } from '../utils/api'
 import { Loader, Star, Clock, Ticket } from 'lucide-react'
+import { useGetMovieQuery, useGetMovieReviewsQuery } from '../store/apiSlice'
 
 export default function PublicMovieDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [movie, setMovie] = useState(null)
-  const [reviewsData, setReviewsData] = useState({ reviews: [], average_rating: 0, total_reviews: 0 })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchDetails() {
-      try {
-        const [movieRes, reviewsRes] = await Promise.all([
-          api.get(`/api/v1/movies/${id}`),
-          api.get(`/api/v1/movies/${id}/reviews?per_page=10`) // get recent reviews
-        ])
-        setMovie(movieRes.data)
-        setReviewsData(reviewsRes.data)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchDetails()
-  }, [id])
+  const { data: movie, isLoading: movieLoading, isFetching: movieFetching } = useGetMovieQuery(id, { skip: !id })
+  const {
+    data: reviewsData = { reviews: [], average_rating: 0, total_reviews: 0 },
+    isLoading: reviewsLoading,
+    isFetching: reviewsFetching,
+  } = useGetMovieReviewsQuery({ movieId: id, perPage: 10 }, { skip: !id })
+  const loading = movieLoading || movieFetching || reviewsLoading || reviewsFetching
 
   if (loading) return <div className="flex justify-center py-20"><Loader className="w-10 h-10 animate-spin text-primary-500" /></div>
   if (!movie) return <div className="text-center py-20 text-neutral-500">Movie not found</div>

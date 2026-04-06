@@ -15,6 +15,25 @@ class Booking < ApplicationRecord
   validates :total_amount, numericality: { greater_than_or_equal_to: 0 }
   validates :lock_token, presence: true, uniqueness: true
 
+  def valid_tickets_subtotal
+    tickets.where(status: "valid").sum(:price).to_d
+  end
+
+  def refresh_expiration!
+    return self unless status_pending?
+
+    active_locks = ShowSeatState.where(
+      lock_token: lock_token,
+      status: "locked"
+    ).where("locked_until >= ?", Time.current)
+
+    return self if active_locks.exists?
+
+    ShowSeatState.where(lock_token: lock_token, status: "locked").delete_all
+    update!(status: "expired")
+    self
+  end
+
   private
 
   def assign_booking_time

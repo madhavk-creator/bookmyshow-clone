@@ -1,5 +1,5 @@
 module Vendors
-  class Income < Trailblazer::Operation
+  class Income < ::Trailblazer::Operation
     step :calculate_income
 
     private

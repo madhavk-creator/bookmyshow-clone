@@ -1,6 +1,7 @@
 module Bookings
-  class Index < Trailblazer::Operation
+  class Index < ::Trailblazer::Operation
     step :load_bookings
+    step :refresh_pending_expirations
 
     private
 
@@ -12,6 +13,10 @@ module Bookings
       records, pagination = Pagination.apply(scope, params)
       ctx[:records] = records
       ctx[:pagination] = pagination
+    end
+
+    def refresh_pending_expirations(ctx, records:, **)
+      ctx[:records] = records.map(&:refresh_expiration!)
     end
   end
 end

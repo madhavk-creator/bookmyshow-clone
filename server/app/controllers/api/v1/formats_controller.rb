@@ -9,9 +9,7 @@ module Api
       def update_operation  = Formats::Update
       def destroy_operation = Formats::Destroy
 
-      def serialize(format)
-        { id: format.id, name: format.name, code: format.code }
-      end
+      def serialize(format) = { id: format.id, name: format.name, code: format.code }
     end
   end
 end

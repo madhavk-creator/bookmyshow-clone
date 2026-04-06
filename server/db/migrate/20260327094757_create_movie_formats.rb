@@ -6,6 +6,6 @@ class CreateMovieFormats < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :movie_formats, [:movie_id, :format_id], unique: true
+    add_index :movie_formats, [ :movie_id, :format_id ], unique: true
   end
 end

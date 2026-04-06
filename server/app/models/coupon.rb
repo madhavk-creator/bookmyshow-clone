@@ -18,7 +18,7 @@ class Coupon < ApplicationRecord
   validate :discount_fields_match_type
 
   scope :active, -> {
-    where('valid_from <= ? AND valid_until >= ?', Time.current, Time.current)
+    where("valid_from <= ? AND valid_until >= ?", Time.current, Time.current)
   }
 
   def applicable?(booking_amount)
@@ -31,7 +31,7 @@ class Coupon < ApplicationRecord
     return booking_amount unless applicable?(booking_amount)
 
     if coupon_type_amount?
-      [booking_amount - discount_amount, 0].max
+      [ booking_amount - discount_amount, 0 ].max
     else
       booking_amount * (1 - discount_percentage / 100.0)
     end

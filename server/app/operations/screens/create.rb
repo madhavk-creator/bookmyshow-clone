@@ -1,5 +1,5 @@
 module Screens
-  class Create < Trailblazer::Operation
+  class Create < ::Trailblazer::Operation
     step :find_theatre
     step :authorize_theatre_ownership
     step :build_screen
@@ -10,7 +10,7 @@ module Screens
     def find_theatre(ctx, params:, **)
       ctx[:theatre] = Theatre.find_by(id: params[:theatre_id])
       unless ctx[:theatre]
-        ctx[:errors] = { theatre: ['Theatre not found'] }
+        ctx[:errors] = { theatre: [ "Theatre not found" ] }
         return false
       end
       true
@@ -22,7 +22,7 @@ module Screens
       return true if current_user.admin?
 
       unless theatre.vendor_id == current_user.id
-        ctx[:errors] = { base: ['You do not own this theatres'] }
+        ctx[:errors] = { base: [ "You do not own this theatres" ] }
         return false
       end
       true
@@ -32,7 +32,7 @@ module Screens
       ctx[:model] = ::Screen.new(
         theatre:       theatre,
         name:          params[:name],
-        status:        params[:status] || 'active',
+        status:        params[:status] || "active",
         total_rows:    params[:total_rows],
         total_columns: params[:total_columns],
         total_seats:   0   # seeded from seat layout, not set manually
@@ -48,7 +48,7 @@ module Screens
       valid_ids = Format.where(id: format_ids).pluck(:id)
       invalid   = format_ids - valid_ids
       if invalid.any?
-        ctx[:errors] = { format_ids: ["Unknown formats IDs: #{invalid.join(', ')}"] }
+        ctx[:errors] = { format_ids: [ "Unknown formats IDs: #{invalid.join(', ')}" ] }
         return false
       end
 
@@ -80,7 +80,7 @@ module Screens
       record = error.respond_to?(:record) ? error.record : nil
       return record.errors.to_hash(true) if record&.errors&.any?
 
-      model.errors.to_hash(true).presence || { base: [error.message] }
+      model.errors.to_hash(true).presence || { base: [ error.message ] }
     end
 
     def collect_errors(ctx, model: nil, **)

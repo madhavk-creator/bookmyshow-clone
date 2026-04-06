@@ -129,12 +129,12 @@ module Api
       def find_screen
         @screen = Screen.joins(theatre: {})
                         .find_by(id: params[:screen_id], theatres: { id: params[:theatre_id] })
-        render json: { error: 'Screen not found' }, status: :not_found unless @screen
+        render json: { error: "Screen not found" }, status: :not_found unless @screen
       end
 
       def find_layout
         layout = @screen.seat_layouts.find_by(id: params[:id])
-        render json: { error: 'Layout not found' }, status: :not_found unless layout
+        render json: { error: "Layout not found" }, status: :not_found unless layout
         layout
       end
 
