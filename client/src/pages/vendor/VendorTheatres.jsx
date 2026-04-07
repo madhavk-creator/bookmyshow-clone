@@ -2,45 +2,41 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector } from 'react-redux'
 import { Building2, Plus, Pencil, Trash2, X, Loader, MapPin } from 'lucide-react'
-import { selectCurrentUser, selectCurrentToken } from '../../store/authSlice'
+import { useCreateTheatreMutation, useDeleteTheatreMutation, useGetCitiesQuery, useGetTheatresQuery, useUpdateTheatreMutation } from '../../store/apiSlice'
+import { selectCurrentUser } from '../../store/authSlice'
+import { extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 export default function VendorTheatres() {
   const user = useSelector(selectCurrentUser)
-  const token = useSelector(selectCurrentToken)
-  const [theatres, setTheatres] = useState([])
-  const [cities, setCities] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingTheatre, setEditingTheatre] = useState(null)
   const [formData, setFormData] = useState({ name: '', building_name: '', street_address: '', pincode: '', city_id: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
-  const fetchTheatres = async () => {
-    try {
-      const res = await fetch(`/api/v1/theatres?vendor_id=${user?.id}`, { headers })
-      const data = await res.json()
-      setTheatres(Array.isArray(data) ? data : [])
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
-  }
-
-  const fetchCities = async () => {
-    try {
-      const res = await fetch('/api/v1/cities')
-      const data = await res.json()
-      setCities(Array.isArray(data) ? data : [])
-    } catch (err) { console.error(err) }
-  }
+  const confirm = useConfirm()
+  const [createTheatre] = useCreateTheatreMutation()
+  const [updateTheatre] = useUpdateTheatreMutation()
+  const [deleteTheatre] = useDeleteTheatreMutation()
+  const { data: cities = [] } = useGetCitiesQuery()
+  const {
+    data: theatres = [],
+    isLoading: theatresLoading,
+    isFetching: theatresFetching,
+    error: theatresError,
+  } = useGetTheatresQuery(
+    { vendor_id: user?.id },
+    { skip: !user?.id }
+  )
 
   useEffect(() => {
-    if (user?.id) {
-      fetchTheatres()
-      fetchCities()
+    if (theatresError) {
+      showApiErrorToast(theatresError, 'Failed to load theatres')
     }
-  }, [user?.id])
+  }, [theatresError])
+
+  const loading = theatresLoading || theatresFetching
 
   const openCreate = () => {
     setEditingTheatre(null)
@@ -68,34 +64,38 @@ export default function VendorTheatres() {
     setError(null)
 
     try {
-      const url = editingTheatre
-        ? `/api/v1/theatres/${editingTheatre.id}`
-        : '/api/v1/theatres'
-      const method = editingTheatre ? 'PATCH' : 'POST'
+      if (editingTheatre) {
+        await updateTheatre({ id: editingTheatre.id, theatre: formData }).unwrap()
+      } else {
+        await createTheatre(formData).unwrap()
+      }
 
-      const res = await fetch(url, {
-        method, headers,
-        body: JSON.stringify({ theatre: formData }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
-
+      showSuccessToast(`Theatre ${editingTheatre ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
-      fetchTheatres()
     } catch (err) {
-      setError(err.message)
+      const message = extractApiError(err, 'Operation failed')
+      setError(message)
+      showApiErrorToast(err, 'Operation failed')
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this theatre?')) return
+    const confirmed = await confirm({
+      title: 'Delete Theatre?',
+      message: 'This theatre will be removed from your catalogue.',
+      confirmText: 'Delete Theatre',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     try {
-      await fetch(`/api/v1/theatres/${id}`, { method: 'DELETE', headers })
-      fetchTheatres()
-    } catch (err) { console.error(err) }
+      await deleteTheatre(id).unwrap()
+      showSuccessToast('Theatre deleted successfully.')
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to delete theatre')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

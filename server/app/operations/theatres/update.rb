@@ -1,19 +1,17 @@
-class Theatre
-  class Update < Trailblazer::Operation
+module Theatres
+  class Update < ::Trailblazer::Operation
     step :find_theatre
     step :update_attributes
     step :persist
     fail :collect_errors
 
-    private
-
     def find_theatre(ctx, params:, **)
       ctx[:model] = Theatre.find_by(id: params[:id])
       unless ctx[:model]
-        ctx[:errors] = { base: ['Theatre not found'] }
+        ctx[:errors] = { base: [ "Theatre not found" ] }
         return false
       end
-      
+
       true
     end
 

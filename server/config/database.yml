@@ -27,7 +27,7 @@ development:
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.
   # When left blank, PostgreSQL will use the default role. This is
-  # the same name as the operating system user running Rails.
+  # the same name as the operating system users running Rails.
   username: server
 
   # The password associated with the PostgreSQL role (username).
@@ -42,7 +42,7 @@ development:
   # If your server runs on a different port number, change accordingly.
   #port: 5432
 
-  # Schema search path. The server defaults to $user,public
+  # Schema search path. The server defaults to $users,public
   #schema_search_path: myapp,sharedapp,public
 
   # Minimum log levels, in increasing order:
@@ -57,6 +57,9 @@ development:
 test:
   <<: *default
   database: server_test
+  username: server
+  password: 1234
+  host: localhost
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is

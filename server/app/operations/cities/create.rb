@@ -1,10 +1,8 @@
-class City
-  class Create < Trailblazer::Operation
+module Cities
+  class Create < ::Trailblazer::Operation
     step :build_city
     step :persist
     fail :collect_errors
-
-    private
 
     def build_city(ctx, params:, **)
       ctx[:model] = ::City.new(
@@ -18,7 +16,7 @@ class City
     end
 
     def collect_errors(ctx, model:, **)
-      ctx[:errors] = model.errors.to_hash(true)
+      ctx[:errors] ||= model.errors.to_hash(true)
     end
   end
 end

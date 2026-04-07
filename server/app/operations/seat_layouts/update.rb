@@ -1,18 +1,16 @@
 # Updates name, dimensions, or display metadata.
 # Blocked on published/archived layouts via policy.
-class SeatLayout
-  class Update < Trailblazer::Operation
+module SeatLayouts
+  class Update < ::Trailblazer::Operation
     step :find_layout
     step :assign_attributes
     step :persist
     fail :collect_errors
 
-    private
-
     def find_layout(ctx, params:, **)
       ctx[:model] = ::SeatLayout.find_by(id: params[:id])
       unless ctx[:model]
-        ctx[:errors] = { base: ['Layout not found'] }
+        ctx[:errors] = { base: [ "Layout not found" ] }
         return false
       end
       true

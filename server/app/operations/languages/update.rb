@@ -1,10 +1,8 @@
-class Language
-  class Update < Trailblazer::Operation
+module Languages
+  class Update < ::Trailblazer::Operation
     step :assign
     step :persist
     fail :collect_errors
-
-    private
 
     def assign(ctx, params:, model:, **)
       model.name = params[:name].strip.titleize if params[:name].present?

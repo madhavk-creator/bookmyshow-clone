@@ -1,10 +1,8 @@
-class Format
-  class Update < Trailblazer::Operation
+module Formats
+  class Update < ::Trailblazer::Operation
     step :update_attributes
     step :persist
     fail :collect_errors
-
-    private
 
     def update_attributes(ctx, params:, model:, **)
       allowed = %i[name code]

@@ -1,42 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSelector } from 'react-redux'
-import { Clapperboard, Plus, Pencil, Trash2, X, Loader, Clock, Star } from 'lucide-react'
-import { selectCurrentToken } from '../../store/authSlice'
+import { Clapperboard, Plus, Pencil, Trash2, X, Loader, Clock } from 'lucide-react'
+import { extractApiError } from '../../utils/api'
+import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
+import { useConfirm } from '../../components/ConfirmProvider'
+import { useCreateMovieMutation, useDeleteMovieMutation, useGetFormatsQuery, useGetLanguagesQuery, useGetMoviesQuery, useUpdateMovieMutation } from '../../store/apiSlice'
 
 export default function AdminMovies() {
-  const token = useSelector(selectCurrentToken)
-  const [movies, setMovies] = useState([])
-  const [languages, setLanguages] = useState([])
-  const [formats, setFormats] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [formData, setFormData] = useState({ title: '', genre: '', rating: 'UA', description: '', director: '', running_time: '', release_date: '', format_ids: [], language_entries: [], cast_members: [] })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
-  const fetchMovies = async () => {
-    try {
-      const res = await fetch('/api/v1/movies')
-      const data = await res.json()
-      setMovies(Array.isArray(data) ? data : [])
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
-  }
-
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/v1/languages').then(r => r.json()),
-      fetch('/api/v1/formats').then(r => r.json()),
-    ]).then(([langs, fmts]) => {
-      setLanguages(Array.isArray(langs) ? langs : [])
-      setFormats(Array.isArray(fmts) ? fmts : [])
-    }).catch(console.error)
-    fetchMovies()
-  }, [])
+  const confirm = useConfirm()
+  const [createMovie] = useCreateMovieMutation()
+  const [updateMovie] = useUpdateMovieMutation()
+  const [deleteMovie] = useDeleteMovieMutation()
+  const { data: movies = [], isLoading: moviesLoading, isFetching: moviesFetching } = useGetMoviesQuery()
+  const { data: languages = [] } = useGetLanguagesQuery()
+  const { data: formats = [] } = useGetFormatsQuery()
+  const loading = moviesLoading || moviesFetching
 
   const openCreate = () => {
     setEditing(null)
@@ -64,22 +47,33 @@ export default function AdminMovies() {
     setSubmitting(true)
     setError(null)
     try {
-      const url = editing ? `/api/v1/movies/${editing.id}` : '/api/v1/movies'
-      const method = editing ? 'PATCH' : 'POST'
       const payload = { ...formData, running_time: parseInt(formData.running_time) || 0 }
-      const res = await fetch(url, { method, headers, body: JSON.stringify({ movie: payload }) })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
+      if (editing) {
+        await updateMovie({ id: editing.id, movie: payload }).unwrap()
+      } else {
+        await createMovie(payload).unwrap()
+      }
+      showSuccessToast(`Movie ${editing ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
-      fetchMovies()
-    } catch (err) { setError(err.message) }
+    } catch (err) { setError(extractApiError(err, 'Operation failed')) }
     finally { setSubmitting(false) }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this movie?')) return
-    try { await fetch(`/api/v1/movies/${id}`, { method: 'DELETE', headers }); fetchMovies() }
-    catch (err) { console.error(err) }
+    const confirmed = await confirm({
+      title: 'Delete Movie?',
+      message: 'This movie will be removed from the catalogue.',
+      confirmText: 'Delete Movie',
+      tone: 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await deleteMovie(id).unwrap()
+      showSuccessToast('Movie deleted successfully.')
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Failed to delete movie')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

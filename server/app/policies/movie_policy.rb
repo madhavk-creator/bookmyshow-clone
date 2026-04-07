@@ -1,5 +1,3 @@
-# Languages and formats are managed through the movie — no separate policies needed.
-
 class MoviePolicy < ApplicationPolicy
   def index?   = true
   def show?    = true

@@ -81,7 +81,7 @@ export default function Navbar() {
                     {/* Menu Items */}
                     <div className="py-1">
                       <Link
-                        to="/"
+                        to="/user/profile"
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
                       >
@@ -89,7 +89,7 @@ export default function Navbar() {
                         My Profile
                       </Link>
                       <Link
-                        to="/"
+                        to="/user/bookings"
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
                       >
@@ -117,7 +117,7 @@ export default function Navbar() {
                         </Link>
                       )}
                       <Link
-                        to="/"
+                        to="/user/settings"
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
                       >

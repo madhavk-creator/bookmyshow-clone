@@ -1,3 +1,4 @@
+
 class ApplicationPolicy
   attr_reader :current_user, :record
 

@@ -6,9 +6,11 @@ module Api
       # GET /api/v1/languages  or  /api/v1/formats
       # Public. Optional ?q= search on name.
       def index
-        records = policy_scope(model_class).order(:name)
-        records = records.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
-        render json: records.map { |r| serialize(r) }
+        result = run(index_operation, params: index_params) do |operation_result|
+          return render json: operation_result[:records].map { |record| serialize(record) }
+        end
+
+        render_operation_errors(result)
       end
 
       # GET /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -25,13 +27,11 @@ module Api
       def create
         authorize model_class
 
-        result = create_operation.call(params: permitted_params.to_h)
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(create_operation, params: permitted_params.to_h.deep_symbolize_keys) do |operation_result|
+          return render json: serialize(operation_result[:model]), status: :created
         end
+
+        render_operation_errors(result)
       end
 
       # PATCH /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -42,16 +42,15 @@ module Api
 
         authorize record
 
-        result = update_operation.call(
-          params: permitted_params.to_h, 
-          model: record 
-        )
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(
+          update_operation,
+          params: permitted_params.to_h.deep_symbolize_keys,
+          model: record
+        ) do |operation_result|
+          return render json: serialize(operation_result[:model])
         end
+
+        render_operation_errors(result)
       end
 
       # DELETE /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -62,30 +61,39 @@ module Api
 
         authorize record
 
-        result = destroy_operation.call(model: record)
-
-        if result.success?
-          render json: { message: "#{model_class.name} deleted successfully" }
-        else
-          render json: { errors: result[:errors] }, status: :unprocessable_entity
+        result = run(destroy_operation, model: record) do
+          return render json: { message: "#{model_class.name} deleted successfully" }
         end
+
+        render_operation_errors(result)
       end
 
       private
 
       def model_class       = raise NotImplementedError
+      def index_operation   = raise NotImplementedError
       def create_operation  = raise NotImplementedError
       def update_operation  = raise NotImplementedError
       def destroy_operation = raise NotImplementedError
       def serialize(_)      = raise NotImplementedError
 
-      def permitted_params
-        params.require(model_class.name.downcase.to_sym).permit(:name, :code)
+      def permitted_params = params.require(model_class.name.downcase.to_sym).permit(:name, :code)
+      def index_params = params.permit(:q).to_h.deep_symbolize_keys
+
+      def render_operation_errors(result)
+        errors = result[:errors].presence || { base: [ "#{model_class.name} operation failed" ] }
+        render json: { errors: errors }, status: error_status_for(errors)
       end
 
-      def not_found
-        render json: { error: "#{model_class.name} not found" }, status: :not_found
+      def error_status_for(errors)
+        flat_errors = errors.to_h.values.flatten.map(&:to_s)
+        return :not_found if flat_errors.any? { |message| message.downcase.include?("not found") }
+        return :forbidden if flat_errors.any? { |message| message.downcase.start_with?("not authorized") || message.downcase == "forbidden" }
+
+        :unprocessable_entity
       end
+
+      def not_found = render(json: { error: "#{model_class.name} not found" }, status: :not_found)
     end
   end
 end

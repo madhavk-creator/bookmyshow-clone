@@ -1,24 +1,22 @@
-class User
-  class Register < Trailblazer::Operation
+module Users
+  class Register < ::Trailblazer::Operation
     step :validate_params
     step :build_user
     step :assign_role
     step :persist
     fail :collect_errors
 
-    private
-
     def validate_params(ctx, params:, **)
-      required = %w[name email password password_confirmation]
-      missing  = required.select { |k| params[k].blank? }
+      required = %i[name email password password_confirmation]
+      missing  = required.select { |key| value_for(params, key).blank? }
 
       if missing.any?
-        ctx[:errors] = { base: ["Missing required fields: #{missing.join(', ')}"] }
+        ctx[:errors] = { base: [ "Missing required fields: #{missing.join(', ')}" ] }
         return false
       end
 
-      if params[:password] != params[:password_confirmation]
-        ctx[:errors] = { password_confirmation: ["doesn't match Password"] }
+      if value_for(params, :password) != value_for(params, :password_confirmation)
+        ctx[:errors] = { password_confirmation: [ "doesn't match Password" ] }
         return false
       end
 
@@ -44,7 +42,13 @@ class User
     end
 
     def collect_errors(ctx, **)
-      ctx[:errors] = ctx[:model].errors.to_hash(true)
+      ctx[:errors] ||= ctx[:model]&.errors&.to_hash(true) || { base: [ "User could not be created" ] }
+    end
+
+    private
+
+    def value_for(params, key)
+      params[key] || params[key.to_s]
     end
   end
 end

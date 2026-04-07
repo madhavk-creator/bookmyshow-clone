@@ -19,7 +19,7 @@ class Ticket < ApplicationRecord
     return if booking.blank? || show.blank?
     return if booking.show_id == show_id
 
-    errors.add(:show, "must match the booking show")
+    errors.add(:show, "must match the booking's show")
   end
 
   def seat_belongs_to_show_layout

@@ -1,29 +1,20 @@
-class Movie
-  class Destroy < Trailblazer::Operation
-    step :find_movie
-    step :destroy
+module Movies
+  class Destroy < ::Trailblazer::Operation
+    step :destroy_movie
     fail :collect_errors
 
-    private
+    def destroy_movie(ctx, model:, **)
+      return true if model.destroy
 
-    def find_movie(ctx, params:, **)
-      ctx[:model] = ::Movie.find_by(id: params[:id])
-      unless ctx[:model]
-        ctx[:errors] = { base: ['Movie not found'] }
-        return false
-      end
-    true
-    end
-
-    def destroy(ctx, model:, **)
-      model.destroy
+      ctx[:errors] = model.errors.to_hash(true).presence || { base: [ "Could not delete movie" ] }
+      false
     rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: ['Cannot delete a movie that has scheduled shows'] }
+      ctx[:errors] = { base: [ "Cannot delete a movie that has scheduled shows" ] }
       false
     end
 
     def collect_errors(ctx, model: nil, **)
-      ctx[:errors] ||= { base: ['Could not delete movie'] }
+      ctx[:errors] ||= model&.errors&.to_hash(true) || { base: [ "Could not delete movie" ] }
     end
   end
 end

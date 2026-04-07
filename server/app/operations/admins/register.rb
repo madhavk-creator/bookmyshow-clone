@@ -1,10 +1,12 @@
 # Admin accounts should only be created by existing admins.
-# The controller enforces this via Pundit before calling this operation.
-module Admin
-  class Register < User::Register
-    private
+module Admins
+  class Register < Users::Register
+    def assign_role(ctx, model:, current_user:, **)
+      unless current_user&.admin?
+        ctx[:errors] = { base: [ "Not authorized to create admin users" ] }
+        return false
+      end
 
-    def assign_role(ctx, model:, **)
       model.role = :admin
     end
   end

@@ -1,5 +1,5 @@
 class UserPolicy < ApplicationPolicy
-  # Any authenticated user can view their own profile.
+  # Any authenticated users can view their own profile.
   # Admins can view any profile.
   def show?
     own_record? || current_user.admin?
@@ -23,6 +23,10 @@ class UserPolicy < ApplicationPolicy
   # Only admins can promote/change roles.
   def change_role?
     current_user.admin?
+  end
+
+  def income?
+    own_record? || current_user.admin?
   end
 
   class Scope < ApplicationPolicy::Scope

@@ -1,0 +1,58 @@
+module Shows
+  # Transitions scheduled → cancelled.
+  # Does NOT handle refunds — those are triggered separately.
+  # Resets any locked SHOW_SEAT_STATE rows for this show.
+
+  class Cancel < ::Trailblazer::Operation
+    step :find_screen
+    step :find_show
+    step :authorize_show
+    step :release_locks
+    step :cancel_show
+    fail :collect_errors
+
+    def find_screen(ctx, params:, **)
+      ctx[:screen] = Screen.find_by(id: params[:screen_id])
+      unless ctx[:screen]&.active?
+        ctx[:errors] = { screen: [ "Screen not found or inactive" ] }
+        return false
+      end
+    true
+    end
+
+    def find_show(ctx, params:, **)
+      scope = ::Show.all
+      scope = scope.where(screen_id: params[:screen_id]) if params[:screen_id].present?
+      ctx[:model] = scope.find_by(id: params[:id])
+      unless ctx[:model]
+        ctx[:errors] = { base: [ "Show not found" ] }
+        return false
+      end
+    true
+    end
+
+    def authorize_show(ctx, model:, current_user:, **)
+      return true if Pundit.policy!(current_user, model).cancel?
+
+      ctx[:errors] = { base: [ "Not authorized to cancel this show" ] }
+      false
+    end
+
+    # Release any active seat locks so users aren't confused.
+    # Booked seats stay — refund flow handles those separately.
+    def release_locks(ctx, model:, **)
+      model.show_seat_states.where(status: "locked").delete_all
+    end
+
+    def cancel_show(ctx, model:, **)
+      model.status_cancelled!
+    rescue ActiveRecord::RecordInvalid => e
+      ctx[:errors] = { base: [ e.message ] }
+      false
+    end
+
+    def collect_errors(ctx, model: nil, **)
+      ctx[:errors] ||= { base: [ "Could not cancel show" ] }
+    end
+  end
+end

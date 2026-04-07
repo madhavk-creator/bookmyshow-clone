@@ -1,10 +1,10 @@
 require "test_helper"
 
 class AuthFlowTest < ActionDispatch::IntegrationTest
-  test "user login returns a token with only user_id based identity claims" do
+  test "users login returns a token with only user_id based identity claims" do
     user = User.create!(
       name: "Test User",
-      email: "user@example.com",
+      email: "users@example.com",
       password: "password",
       password_confirmation: "password",
       role: :user,
@@ -28,10 +28,10 @@ class AuthFlowTest < ActionDispatch::IntegrationTest
     assert_nil payload[:role]
   end
 
-  test "vendor cannot log in through the user endpoint" do
+  test "vendors cannot log in through the users endpoint" do
     vendor = User.create!(
       name: "Vendor User",
-      email: "vendor@example.com",
+      email: "vendors@example.com",
       password: "password",
       password_confirmation: "password",
       role: :vendor,

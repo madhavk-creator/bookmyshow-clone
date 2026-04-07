@@ -1,10 +1,8 @@
-class Format
-  class Create < Trailblazer::Operation
+module Formats
+  class Create < ::Trailblazer::Operation
     step :build
     step :persist
     fail :collect_errors
-
-    private
 
     def build(ctx, params:, **)
       ctx[:model] = ::Format.new(
@@ -18,7 +16,7 @@ class Format
     end
 
     def collect_errors(ctx, model:, **)
-      ctx[:errors] = model.errors.to_hash(true)
+      ctx[:errors] ||= model.errors.to_hash(true)
     end
   end
 end

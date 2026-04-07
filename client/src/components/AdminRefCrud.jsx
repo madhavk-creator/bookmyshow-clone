@@ -1,31 +1,35 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSelector } from 'react-redux'
 import { Plus, Pencil, Trash2, X, Loader } from 'lucide-react'
-import { selectCurrentToken } from '../store/authSlice'
+import { extractApiError } from '../utils/api'
+import { useCreateReferenceItemMutation, useDeleteReferenceItemMutation, useGetReferenceItemsQuery, useUpdateReferenceItemMutation } from '../store/apiSlice'
+import { showApiErrorToast, showSuccessToast } from '../utils/toast'
+import { useConfirm } from './ConfirmProvider'
 
 export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon, fields, color = 'rose' }) {
-  const token = useSelector(selectCurrentToken)
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [formData, setFormData] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const confirm = useConfirm()
+  const [createReferenceItem] = useCreateReferenceItemMutation()
+  const [updateReferenceItem] = useUpdateReferenceItemMutation()
+  const [deleteReferenceItem] = useDeleteReferenceItemMutation()
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+    error: itemsError,
+  } = useGetReferenceItemsQuery(apiPath)
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  useEffect(() => {
+    if (itemsError) {
+      showApiErrorToast(itemsError, `Failed to load ${entityName.toLowerCase()}`)
+    }
+  }, [entityName, itemsError])
 
-  const fetchItems = async () => {
-    try {
-      const res = await fetch(`/api/v1/${apiPath}`)
-      const data = await res.json()
-      setItems(Array.isArray(data) ? data : [])
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
-  }
-
-  useEffect(() => { fetchItems() }, [])
+  const loading = isLoading || isFetching
 
   const openCreate = () => {
     setEditing(null)
@@ -51,23 +55,36 @@ export default function AdminRefCrud({ entityName, apiPath, paramKey, icon: Icon
     setError(null)
     try {
       const key = paramKey || apiPath.replace(/s$/, '')
-      const url = editing ? `/api/v1/${apiPath}/${editing.id}` : `/api/v1/${apiPath}`
-      const method = editing ? 'PATCH' : 'POST'
-      const res = await fetch(url, { method, headers, body: JSON.stringify({ [key]: formData }) })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.errors?.join(', ') || data.error || 'Operation failed')
+      if (editing) {
+        await updateReferenceItem({ apiPath, id: editing.id, paramKey: key, payload: formData }).unwrap()
+      } else {
+        await createReferenceItem({ apiPath, paramKey: key, payload: formData }).unwrap()
+      }
+      showSuccessToast(`${entityName.replace(/ies$/, 'y').replace(/s$/, '')} ${editing ? 'updated' : 'created'} successfully.`)
       setShowModal(false)
-      fetchItems()
-    } catch (err) { setError(err.message) }
+    } catch (err) {
+      const message = extractApiError(err, 'Operation failed')
+      setError(message)
+      showApiErrorToast(err, 'Operation failed')
+    }
     finally { setSubmitting(false) }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm(`Delete this ${entityName.toLowerCase().replace(/s$/, '')}?`)) return
+    const confirmed = await confirm({
+      title: `Delete ${entityName.replace(/ies$/, 'y').replace(/s$/, '')}?`,
+      message: `This will permanently remove this ${entityName.toLowerCase().replace(/s$/, '')}.`,
+      confirmText: 'Delete',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     try {
-      await fetch(`/api/v1/${apiPath}/${id}`, { method: 'DELETE', headers })
-      fetchItems()
-    } catch (err) { console.error(err) }
+      await deleteReferenceItem({ apiPath, id }).unwrap()
+      showSuccessToast(`${entityName.replace(/ies$/, 'y').replace(/s$/, '')} deleted successfully.`)
+    } catch (err) {
+      console.error(err)
+      showApiErrorToast(err, 'Delete failed')
+    }
   }
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))

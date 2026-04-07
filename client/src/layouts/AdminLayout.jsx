@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { clearCredentials, selectCurrentUser } from '../store/authSlice'
 import {
   ShieldCheck, Film as FilmIcon, LayoutDashboard, Clapperboard, MapPin, Globe, MonitorPlay,
-  Settings, LogOut, ChevronLeft, ChevronRight, Building2, UserPlus
+  Settings, LogOut, ChevronLeft, ChevronRight, Building2, UserPlus, Tag
 } from 'lucide-react'
 
 const sidebarLinks = [
@@ -14,7 +14,9 @@ const sidebarLinks = [
   { to: '/admin/languages',  icon: Globe,           label: 'Languages' },
   { to: '/admin/formats',    icon: MonitorPlay,     label: 'Formats' },
   { to: '/admin/theatres',   icon: Building2,       label: 'Theatres' },
+  { to: '/admin/coupons',    icon: Tag,             label: 'Coupons' },
   { to: '/admin/register',   icon: UserPlus,        label: 'Add Admin' },
+  { to: '/admin/settings',   icon: Settings,        label: 'Settings' },
 ]
 
 export default function AdminLayout() {
