@@ -15,40 +15,18 @@ module Api
 
       # POST /api/v1/(users|vendors|admins)/login
       def create
-        user = User.find_by(email: email_param)
-
-        unless user&.valid_password?(password_param)
-          render json: { error: "Invalid email or password" }, status: :unauthorized and return
+        result = run Users::Login, params: login_params, expected_role: expected_role do |operation_result|
+          return render json: operation_result[:response_data], status: :ok
         end
 
-        unless user.is_active?
-          render json: { error: "Account is deactivated. Contact support." },
-                 status: :unauthorized and return
-        end
-
-        unless user.role == expected_role.to_s
-          render json: { error: "Invalid email or password" }, status: :unauthorized and return
-        end
-
-        token = JsonWebToken.encode({ user_id: user.id })
-
-        render json: {
-          token: token,
-          user:  serialize(user)
-        }, status: :ok
+        render json: { error: result[:error] }, status: (result[:status] || :unprocessable_entity)
       end
 
       private
 
       def expected_role = raise(NotImplementedError)
 
-      def login_payload = params
-
-      def email_param = login_payload[:email]&.downcase&.strip
-
-      def password_param = login_payload[:password]
-
-      def serialize(user) = { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
+      def login_params = params.permit(:email, :password).to_h.deep_symbolize_keys
     end
   end
 end

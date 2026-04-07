@@ -7,7 +7,7 @@ module Api
       def create
         result = run(operation_class, params: registration_params.to_h) do |operation_result|
           token = JsonWebToken.encode({ user_id: operation_result[:model].id })
-          return render json: { token: token, user: serialize(operation_result[:model]) }, status: :created
+          return render json: { token: token, user: Users::Serializer.call(operation_result[:model]) }, status: :created
         end
 
         render json: { errors: result[:errors] }, status: :unprocessable_entity
@@ -18,8 +18,6 @@ module Api
       def operation_class = raise(NotImplementedError)
 
       def registration_params = params.require(:registration).permit(:name, :email, :password, :password_confirmation, :phone)
-
-      def serialize(user) = { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role }
     end
   end
 end

@@ -10,8 +10,8 @@ module Languages
       false
     end
 
-    def collect_errors(ctx, **)
-      ctx[:errors] ||= { base: [ "Could not delete language" ] }
+    def collect_errors(ctx, model:, **)
+      ctx[:errors] ||= model.errors.to_hash(true).presence || { base: [ "Could not delete language" ] }
     end
   end
 end

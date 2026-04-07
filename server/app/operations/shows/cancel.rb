@@ -4,18 +4,38 @@ module Shows
   # Resets any locked SHOW_SEAT_STATE rows for this show.
 
   class Cancel < ::Trailblazer::Operation
+    step :find_screen
     step :find_show
+    step :authorize_show
     step :release_locks
     step :cancel_show
     fail :collect_errors
 
+    def find_screen(ctx, params:, **)
+      ctx[:screen] = Screen.find_by(id: params[:screen_id])
+      unless ctx[:screen]&.active?
+        ctx[:errors] = { screen: [ "Screen not found or inactive" ] }
+        return false
+      end
+    true
+    end
+
     def find_show(ctx, params:, **)
-      ctx[:model] = ::Show.find_by(id: params[:id])
+      scope = ::Show.all
+      scope = scope.where(screen_id: params[:screen_id]) if params[:screen_id].present?
+      ctx[:model] = scope.find_by(id: params[:id])
       unless ctx[:model]
         ctx[:errors] = { base: [ "Show not found" ] }
         return false
       end
     true
+    end
+
+    def authorize_show(ctx, model:, current_user:, **)
+      return true if Pundit.policy!(current_user, model).cancel?
+
+      ctx[:errors] = { base: [ "Not authorized to cancel this show" ] }
+      false
     end
 
     # Release any active seat locks so users aren't confused.

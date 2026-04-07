@@ -6,7 +6,8 @@ class ApplicationController < ActionController::API
 
   # return the result object and yield only on successful operations.
   def run(operation, **options)
-    result = operation.call(**options)
+    call_options = options.key?(:current_user) ? options : options.merge(current_user: current_user)
+    result = operation.call(**call_options)
     yield(result) if result.success? && block_given?
     result
   end

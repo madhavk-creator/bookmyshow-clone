@@ -16,6 +16,7 @@
 module Shows
   class Create < ::Trailblazer::Operation
     step :find_screen
+    step :authorize_screen
     step :find_movie
     step :find_layout
     step :find_movie_language
@@ -34,6 +35,14 @@ module Shows
         return false
       end
     true
+    end
+
+    def authorize_screen(ctx, screen:, current_user:, **)
+      record = ::Show.new(screen: screen)
+      return true if Pundit.policy!(current_user, record).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create show for this screen" ] }
+      false
     end
 
     def find_movie(ctx, params:, **)

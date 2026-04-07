@@ -16,7 +16,7 @@ module Languages
     end
 
     def collect_errors(ctx, model:, **)
-      ctx[:errors] = model.errors.to_hash(true)
+      ctx[:errors] ||= model.errors.to_hash(true)
     end
   end
 end

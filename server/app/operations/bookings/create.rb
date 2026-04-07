@@ -18,6 +18,7 @@ module Bookings
   class Create < ::Trailblazer::Operation
     include CouponSupport
 
+    step :authorize_create
     step :find_show
     step :validate_requested_seats
     step :resolve_coupon
@@ -27,6 +28,13 @@ module Bookings
     step :persist_booking_bundle
     fail :release_locks_on_failure
     fail :collect_errors
+
+    def authorize_create(ctx, current_user:, **)
+      return true if Pundit.policy!(current_user, ::Booking).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create booking" ] }
+      false
+    end
 
     def find_show(ctx, params:, **)
       ctx[:show] = Show.includes(

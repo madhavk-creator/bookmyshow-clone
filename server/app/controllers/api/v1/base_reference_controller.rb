@@ -6,11 +6,11 @@ module Api
       # GET /api/v1/languages  or  /api/v1/formats
       # Public. Optional ?q= search on name.
       def index
-        result = run(index_operation, current_user: current_user, params: { q: params[:q] }) do |operation_result|
+        result = run(index_operation, params: index_params) do |operation_result|
           return render json: operation_result[:records].map { |record| serialize(record) }
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # GET /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -27,11 +27,11 @@ module Api
       def create
         authorize model_class
 
-        result = run(create_operation, current_user: current_user, params: permitted_params.to_h) do |operation_result|
+        result = run(create_operation, params: permitted_params.to_h.deep_symbolize_keys) do |operation_result|
           return render json: serialize(operation_result[:model]), status: :created
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # PATCH /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -44,13 +44,13 @@ module Api
 
         result = run(
           update_operation,
-          params: permitted_params.to_h,
+          params: permitted_params.to_h.deep_symbolize_keys,
           model: record
         ) do |operation_result|
           return render json: serialize(operation_result[:model])
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # DELETE /api/v1/languages/:id  or  /api/v1/formats/:id
@@ -65,7 +65,7 @@ module Api
           return render json: { message: "#{model_class.name} deleted successfully" }
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       private
@@ -78,6 +78,20 @@ module Api
       def serialize(_)      = raise NotImplementedError
 
       def permitted_params = params.require(model_class.name.downcase.to_sym).permit(:name, :code)
+      def index_params = params.permit(:q).to_h.deep_symbolize_keys
+
+      def render_operation_errors(result)
+        errors = result[:errors].presence || { base: [ "#{model_class.name} operation failed" ] }
+        render json: { errors: errors }, status: error_status_for(errors)
+      end
+
+      def error_status_for(errors)
+        flat_errors = errors.to_h.values.flatten.map(&:to_s)
+        return :not_found if flat_errors.any? { |message| message.downcase.include?("not found") }
+        return :forbidden if flat_errors.any? { |message| message.downcase.start_with?("not authorized") || message.downcase == "forbidden" }
+
+        :unprocessable_entity
+      end
 
       def not_found = render(json: { error: "#{model_class.name} not found" }, status: :not_found)
     end

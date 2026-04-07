@@ -1,7 +1,7 @@
 require "rails_helper"
 
-RSpec.describe Bookings::Create do
-  it "creates a pending booking with tickets and payment" do
+RSpec.describe Bookings::Create do #let
+  it "creates a pending booking with tickets and payment" do #context
     customer = create(:user)
     show = create(:show, :bookable, seat_count: 3, base_price: 100)
     seats = show.seat_layout.seats.order(:seat_number)
@@ -23,7 +23,7 @@ RSpec.describe Bookings::Create do
   end
 
   it "fails before locking or pricing when any requested seat id is invalid" do
-    customer = create(:user)
+    customer = create(:user) #before
     show = create(:show, :bookable, seat_count: 2)
     seats = show.seat_layout.seats.order(:seat_number)
     booking_count = Booking.count

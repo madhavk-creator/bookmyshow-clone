@@ -3,123 +3,69 @@ module Api
     class ShowsController < ApplicationController
       before_action :authenticate!, only: %i[create update cancel]
 
-      # Nested context — only required for write actions and scoped reads.
-      before_action :find_screen, only: %i[create update cancel]
-
       # GET /api/v1/shows
       # GET /api/v1/theatres/:theatre_id/screens/:screen_id/shows
       # Public. Defaults to scheduled shows only. All filters optional.
       def index
-        result = run(
-          Shows::Index,
-          current_user: current_user,
-          params: {
-            screen_id: params[:screen_id],
-            status: params[:status],
-            movie_id: params[:movie_id],
-            date: params[:date],
-            language: params[:language],
-            format: params[:format],
-            city_id: params[:city_id],
-            page: params[:page],
-            per_page: params[:per_page]
-          }
-        ) do |operation_result|
+        result = run Shows::Index, params: index_params do |operation_result|
           return render json: {
-            shows: operation_result[:records].map { |show_record| serialize(show_record) },
+            shows: Shows::Serializer.many(operation_result[:records]),
             pagination: operation_result[:pagination]
-          }
+          }, status: :ok
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # GET /api/v1/shows/:id
       # GET /api/v1/theatres/:theatre_id/screens/:screen_id/shows/:id
       # Public. Full detail including section prices.
       def show
-        show_record = find_show_globally
-        return unless show_record
+        result = run Shows::Show, params: show_lookup_params do |operation_result|
+          return render json: Shows::Serializer.call(operation_result[:model], detailed: true), status: :ok
+        end
 
-        render json: serialize(show_record, detailed: true)
+        render_operation_errors(result)
       end
 
       # POST /api/v1/theatres/:theatre_id/screens/:screen_id/shows
       def create
-        authorize Show.new(screen: @screen)
-
-        result = run(
-          Shows::Create,
-          params: show_params.to_h.deep_symbolize_keys.merge(screen_id: @screen.id)
-        ) do |operation_result|
-          return render json: serialize(operation_result[:model], detailed: true), status: :created
+        result = run Shows::Create, params: show_params.to_h.deep_symbolize_keys.merge(screen_id: params[:screen_id]) do |operation_result|
+          return render json: Shows::Serializer.call(operation_result[:model], detailed: true), status: :created
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # PATCH /api/v1/theatres/:theatre_id/screens/:screen_id/shows/:id
       # Only start_time and section_prices are mutable after creation.
       def update
-        show_record = @screen.shows.find_by(id: params[:id])
-        return not_found unless show_record
-
-        authorize show_record
-
-        result = run(
-          Shows::Update,
-          params: show_params.to_h.deep_symbolize_keys.merge(id: show_record.id)
-        ) do |operation_result|
-          return render json: serialize(operation_result[:model], detailed: true)
+        result = run Shows::Update, params: show_params.to_h.deep_symbolize_keys.merge(id: params[:id], screen_id: params[:screen_id]) do |operation_result|
+          return render json: Shows::Serializer.call(operation_result[:model], detailed: true), status: :ok
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # POST /api/v1/theatres/:theatre_id/screens/:screen_id/shows/:id/cancel
       def cancel
-        show_record = @screen.shows.find_by(id: params[:id])
-        return not_found unless show_record
-
-        authorize show_record
-
-        result = run(Shows::Cancel, params: { id: show_record.id }) do |operation_result|
-          return render json: serialize(operation_result[:model])
+        result = run Shows::Cancel, params: { id: params[:id], screen_id: params[:screen_id] } do |operation_result|
+          return render json: Shows::Serializer.call(operation_result[:model]), status: :ok
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       private
 
-      # Only called for write actions — requires full nested context.
-      def find_screen
-        @screen = Screen.joins(theatre: {})
-                        .find_by(
-                          id:       params[:screen_id],
-                          theatres: { id: params[:theatre_id] }
-                        )
-        render json: { error: "Screen not found" }, status: :not_found unless @screen
+      def index_params
+        params.permit(:screen_id, :status, :movie_id, :date, :language, :format, :city_id, :page, :per_page)
+              .to_h
+              .deep_symbolize_keys
       end
 
-      # Works from both top-level and nested routes.
-      # Top-level routes stay global for discovery.
-      # Nested routes enforce the provided theatre/screen chain.
-      def find_show_globally
-        scope = Show.all
-
-        if params[:screen_id].present?
-          scope = scope.where(screen_id: params[:screen_id])
-        end
-
-        if params[:theatre_id].present?
-          scope = scope.joins(screen: :theatre)
-                       .where(theatres: { id: params[:theatre_id] })
-        end
-
-        show  = scope.find_by(id: params[:id])
-        not_found unless show
-        show
+      def show_lookup_params
+        params.permit(:id, :screen_id, :theatre_id).to_h.deep_symbolize_keys
       end
 
       def show_params
@@ -130,45 +76,22 @@ module Api
         )
       end
 
-      def serialize(show, detailed: false)
-        base = {
-          id:             show.id,
-          screen_id:      show.screen_id,
-          screen:         {
-            id: show.screen.id,
-            name: show.screen.name,
-            theatre: {
-              id: show.screen.theatre.id,
-              name: show.screen.theatre.name,
-              building_name: show.screen.theatre.building_name,
-              street_address: show.screen.theatre.street_address
-            }
-          },
-          movie:          { id: show.movie.id, title: show.movie.title, running_time: show.movie.running_time },
-          language:       { id: show.movie_language.id, code: show.movie_language.language.code },
-          format:         { id: show.movie_format.id,   code: show.movie_format.format.code },
-          seat_layout_id: show.seat_layout_id,
-          start_time:     show.start_time,
-          end_time:       show.end_time,
-          total_capacity: show.total_capacity,
-          status:         show.status
-        }
-
-        if detailed
-          base[:section_prices] = show.show_section_prices.map do |sp|
-            {
-              seat_section_id:   sp.seat_section_id,
-              seat_section_code: sp.seat_section.code,
-              seat_section_name: sp.seat_section.name,
-              base_price:        sp.base_price
-            }
-          end
-        end
-
-        base
+      def render_errors(errors, status: :unprocessable_entity)
+        render json: { errors: errors }, status: status
       end
 
-      def not_found = render(json: { error: "Show not found" }, status: :not_found)
+      def render_operation_errors(result)
+        render_errors(result[:errors], status: error_status_for(result[:errors]))
+      end
+
+      def error_status_for(errors)
+        flat_errors = errors.to_h.values.flatten
+        return :not_found if flat_errors.include?("Not found") || flat_errors.include?("Show not found")
+        return :forbidden if flat_errors.any? { |message| message.to_s.start_with?("Not authorized") }
+
+        :unprocessable_entity
+      end
+
     end
   end
 end
