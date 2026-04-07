@@ -1,53 +1,42 @@
 module Api
   module V1
     class CouponsController < ApplicationController
-      skip_before_action :authenticate!, only: [ :index, :validate_coupon ], raise: false
+      skip_before_action :authenticate!, only: %i[index validate], raise: false
+      before_action :authenticate_optional!, only: %i[validate]
 
       def index
-        # Return all active coupons
-        coupons = ::Coupon.active.order(created_at: :desc)
-        render json: { coupons: CouponSerializer.many(coupons) }
+        result = run Coupons::Index do |operation_result|
+          return render json: { coupons: CouponSerializer.many(operation_result[:records]) }, status: :ok
+        end
+
+        render_operation_errors(result)
       end
 
-      def validate_coupon
-        coupon = ::Coupon.find_by(code: params[:code].to_s.upcase.strip)
-
-        unless coupon
-          return render json: { error: "Invalid coupon code" }, status: :not_found
+      def validate
+        result = run Coupons::Validate, params: validate_params do |operation_result|
+          return render json: operation_result[:payload], status: :ok
         end
 
-        booking_amount = params[:booking_amount]
-        return render json: { errors: [ "booking_amount is required" ] }, status: :bad_request if booking_amount.blank?
+        render_operation_errors(result)
+      end
 
-        subtotal = BigDecimal(booking_amount.to_s)
+      private
 
-        if !coupon.applicable?(subtotal)
-          return render json: { error: "Coupon is not applicable to this booking amount or has expired" }, status: :unprocessable_entity
-        end
+      def validate_params
+        params.permit(:code, :booking_amount).to_h.deep_symbolize_keys
+      end
 
-        # Check per-user limit if max_uses_per_user is set, and the user is logged in
-        if coupon.max_uses_per_user.present?
-          if current_user
-            used_count = ::UserCouponUsage.where(coupon: coupon, user: current_user).count
-            if used_count >= coupon.max_uses_per_user
-              return render json: { error: "You have already used this coupon the maximum number of times" }, status: :unprocessable_entity
-            end
-          else
-            return render json: { error: "This coupon can only be used by registered users" }, status: :unprocessable_entity
-          end
+      def render_operation_errors(result)
+        errors = result[:errors].presence || { base: [ "Coupon request failed" ] }
+        render json: { errors: errors }, status: error_status_for(errors)
+      end
 
-        end
+      def error_status_for(errors)
+        messages = errors.values.flatten.map(&:to_s)
+        return :not_found if messages.any? { |message| message == "Invalid coupon code" || message.downcase.include?("not found") }
+        return :bad_request if errors.key?(:booking_amount)
 
-        discount = subtotal - coupon.apply(subtotal)
-
-        render json: {
-          valid: true,
-          code: coupon.code,
-          original_amount: subtotal,
-          discount_amount: discount,
-          final_amount: subtotal - discount,
-          coupon_type: coupon.coupon_type
-        }
+        :unprocessable_entity
       end
     end
   end

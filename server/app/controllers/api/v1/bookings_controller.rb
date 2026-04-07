@@ -74,6 +74,7 @@ module Api
       private
 
       def booking_params = params.require(:booking).permit(:show_id, :coupon_code, seat_ids: [])
+
       def index_params = params.permit(:page, :per_page).to_h.deep_symbolize_keys
 
       def render_errors(errors, status: :unprocessable_entity) = render(json: { errors: errors }, status:)

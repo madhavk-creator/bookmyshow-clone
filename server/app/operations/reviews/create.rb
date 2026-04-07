@@ -1,6 +1,7 @@
 module Reviews
   class Create < ::Trailblazer::Operation
     step :find_movie
+    step :authorize_create
     step :check_not_already_reviewed
     step :check_proof_of_purchase
     step :build_review
@@ -14,6 +15,13 @@ module Reviews
       return true if ctx[:movie]
 
       ctx[:errors] = { movie: [ "Movie not found" ] }
+      false
+    end
+
+    def authorize_create(ctx, current_user:, **)
+      return true if Pundit.policy!(current_user, ::Review).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create review" ] }
       false
     end
 

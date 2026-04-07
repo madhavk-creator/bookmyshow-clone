@@ -1,16 +1,18 @@
-# Handles city resolution inline:
-#   - If city_id is provided, use it directly.
-#   - If city name + state are provided, find-or-create the city.
-# This lets vendors register their own theatre, while admins can create one
-# on behalf of an existing vendor, without a separate city-management call.
-
 module Theatres
   class Create < ::Trailblazer::Operation
+    step :authorize_create
     step :resolve_city
     step :resolve_vendor
     step :build_theatre
     step :persist
     fail :collect_errors
+
+    def authorize_create(ctx, current_user:, **)
+      return true if Pundit.policy!(current_user, ::Theatre).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create theatre" ] }
+      false
+    end
 
     def resolve_city(ctx, params:, current_user:, **)
       if params[:city_id].present?

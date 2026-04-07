@@ -2,137 +2,79 @@ module Api
   module V1
     class ReviewsController < ApplicationController
       before_action :authenticate!, only: %i[create update destroy]
-      before_action :find_movie
 
       # GET /api/v1/movies/:movie_id/reviews
       def index
-        result = Reviews::Index.call(
-          current_user: current_user,
-          params: {
-            movie_id: @movie.id,
-            page: params[:page],
-            per_page: params[:per_page]
-          }
-        )
-
-        if result.success?
-          render json: {
-            movie_id: @movie.id,
-            average_rating: result[:average_rating],
-            total_reviews: result[:total_reviews],
-            reviews: result[:records].map { |review| serialize(review) },
-            pagination: result[:pagination]
-          }
-        else
-          render_errors(result)
+        result = run Reviews::Index, params: index_params do |operation_result|
+          return render json: {
+            movie_id: operation_result[:movie].id,
+            average_rating: operation_result[:average_rating],
+            total_reviews: operation_result[:total_reviews],
+            reviews: Reviews::Serializer.many(operation_result[:records]),
+            pagination: operation_result[:pagination]
+          }, status: :ok
         end
+
+        render_operation_errors(result)
       end
 
       # GET /api/v1/movies/:movie_id/reviews/:id
       def show
-        result = Reviews::Show.call(
-          current_user: current_user,
-          params: { id: params[:id], movie_id: @movie.id }
-        )
-
-        if result.success?
-          render json: serialize(result[:model])
-        else
-          render_not_found_or_errors(result)
+        result = run Reviews::Show, params: { id: params[:id], movie_id: params[:movie_id] } do |operation_result|
+          return render json: Reviews::Serializer.call(operation_result[:model]), status: :ok
         end
+
+        render_operation_errors(result)
       end
 
       # POST /api/v1/movies/:movie_id/reviews
       def create
-        authorize Review
-
-        result = Reviews::Create.call(
-          current_user: current_user,
-          params: review_params.to_h.merge(movie_id: @movie.id)
-        )
-
-        if result.success?
-          render json: serialize(result[:model]), status: :created
-        else
-          render_not_found_or_errors(result)
+        result = run Reviews::Create, params: review_params.to_h.deep_symbolize_keys.merge(movie_id: params[:movie_id]) do |operation_result|
+          return render json: Reviews::Serializer.call(operation_result[:model]), status: :created
         end
+
+        render_operation_errors(result)
       end
 
       # PATCH /api/v1/movies/:movie_id/reviews/:id
       def update
-        result = Reviews::Update.call(
-          current_user: current_user,
-          params: review_params.to_h.merge(id: params[:id], movie_id: @movie.id)
-        )
-
-        if result.success?
-          authorize result[:model]
-          render json: serialize(result[:model])
-        else
-          render_not_found_or_errors(result)
+        result = run Reviews::Update, params: review_params.to_h.deep_symbolize_keys.merge(id: params[:id], movie_id: params[:movie_id]) do |operation_result|
+          return render json: Reviews::Serializer.call(operation_result[:model]), status: :ok
         end
+
+        render_operation_errors(result)
       end
 
       # DELETE /api/v1/movies/:movie_id/reviews/:id
       def destroy
-        result = Reviews::Destroy.call(
-          current_user: current_user,
-          params: { id: params[:id], movie_id: @movie.id }
-        )
-
-        if result.success?
+        result = run Reviews::Destroy, params: { id: params[:id], movie_id: params[:movie_id] } do
           render json: { message: "Review deleted successfully" }
-        else
-          render_not_found_or_errors(result)
         end
+
+        render_operation_errors(result) unless result.success?
       end
 
       private
-
-      def find_movie
-        @movie = Movie.find_by(id: params[:movie_id])
-        return if @movie
-
-        render json: { errors: { movie: [ "Movie not found" ] } }, status: :not_found
-      end
 
       def review_params
         params.require(:review).permit(:rating, :description)
       end
 
-      def serialize(review)
-        {
-          id: review.id,
-          user: {
-            id: review.user_id,
-            name: review.user.name
-          },
-          rating: review.rating,
-          description: review.description,
-          reviewed_on: review.reviewed_on
-        }
+      def index_params
+        params.permit(:movie_id, :page, :per_page).to_h.deep_symbolize_keys
       end
 
-      def render_errors(result, status: :unprocessable_entity)
-        render json: {
-          errors: result[:errors] || { base: [ "Request failed" ] }
-        }, status: status
+      def render_operation_errors(result)
+        errors = result[:errors].presence || { base: [ "Request failed" ] }
+        render json: { errors: errors }, status: error_status_for(errors)
       end
 
-      def render_not_found_or_errors(result)
-        errors = result[:errors] || {}
+      def error_status_for(errors)
         messages = errors.values.flatten.map(&:to_s)
+        return :not_found if messages.any? { |message| message.downcase.include?("not found") }
+        return :forbidden if messages.any? { |message| message.start_with?("Not authorized") || message == "Forbidden" }
 
-        status =
-          if errors[:movie]&.include?("Movie not found") || errors[:review]&.include?("Review not found")
-            :not_found
-          elsif messages.any? { |message| message.start_with?("Not authorized") }
-            :forbidden
-          else
-            :unprocessable_entity
-          end
-
-        render_errors(result, status: status)
+        :unprocessable_entity
       end
     end
   end

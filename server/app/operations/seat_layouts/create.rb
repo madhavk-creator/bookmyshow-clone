@@ -1,17 +1,27 @@
 module SeatLayouts
   class Create < ::Trailblazer::Operation
     step :find_screen
+    step :authorize_create
     step :build_layout
     step :persist
     fail :collect_errors
 
     def find_screen(ctx, params:, **)
-      ctx[:screen] = Screen.find_by(id: params[:screen_id])
+      ctx[:screen] = Screen.joins(:theatre)
+                          .find_by(id: params[:screen_id], theatres: { id: params[:theatre_id] })
       unless ctx[:screen]
         ctx[:errors] = { screen: [ "Screen not found" ] }
         return false
       end
       true
+    end
+
+    def authorize_create(ctx, screen:, current_user:, **)
+      record = ::SeatLayout.new(screen: screen)
+      return true if Pundit.policy!(current_user, record).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create seat layout" ] }
+      false
     end
 
     def build_layout(ctx, params:, screen:, **)

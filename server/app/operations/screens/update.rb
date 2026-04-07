@@ -1,23 +1,42 @@
 module Screens
   class Update < ::Trailblazer::Operation
+    step :find_theatre
     step :find_screen
+    step :authorize_screen
     step :assign_attributes
     step :validate_format_ids
     step :persist_changes
     fail :collect_errors
 
-    def find_screen(ctx, params:, **)
-      ctx[:model] = ::Screen.find_by(id: params[:id])
-      unless ctx[:model]
-        ctx[:errors] = { base: [ "Screen not found" ] }
+    def find_theatre(ctx, params:, **)
+      ctx[:theatre] = ::Theatre.find_by(id: params[:theatre_id])
+      unless ctx[:theatre]
+        ctx[:errors] = { theatre: [ "Theatre not found" ] }
         return false
       end
       true
     end
 
+    def find_screen(ctx, params:, theatre:, **)
+      ctx[:model] = theatre.screens.find_by(id: params[:id])
+      unless ctx[:model]
+        ctx[:errors] = { screen: [ "Screen not found" ] }
+        return false
+      end
+      true
+    end
+
+    def authorize_screen(ctx, model:, current_user:, **)
+      return true if Pundit.policy!(current_user, model).update?
+
+      ctx[:errors] = { base: [ "Not authorized to update this screen" ] }
+      false
+    end
+
     def assign_attributes(ctx, params:, model:, **)
       allowed = %i[name status total_rows total_columns]
       model.assign_attributes(params.slice(*allowed).compact)
+      true
     end
 
     def validate_format_ids(ctx, params:, **)

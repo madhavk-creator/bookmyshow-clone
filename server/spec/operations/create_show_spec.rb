@@ -12,6 +12,7 @@ RSpec.describe Shows::Create do
     section = create(:seat_section, seat_layout: layout, code: "prime", name: "Prime", rank: 1)
 
     result = Shows::Create.call(
+      current_user: vendor,
       params: {
         screen_id: screen.id,
         movie_id: movie.id,
@@ -38,7 +39,8 @@ RSpec.describe Shows::Create do
   end
 
   it "fails when section prices are missing for a layout section" do
-    screen = create(:screen, total_seats: 2)
+    vendor = create(:user, :vendor)
+    screen = create(:screen, theatre: create(:theatre, vendor: vendor), total_seats: 2)
     movie = create(:movie)
     movie_language = create(:movie_language, movie: movie)
     movie_format = create(:movie_format, movie: movie)
@@ -48,6 +50,7 @@ RSpec.describe Shows::Create do
     balcony = create(:seat_section, seat_layout: layout, code: "balcony", name: "Balcony", rank: 2)
 
     result = Shows::Create.call(
+      current_user: vendor,
       params: {
         screen_id: screen.id,
         movie_id: movie.id,

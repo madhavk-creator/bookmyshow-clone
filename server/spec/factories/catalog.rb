@@ -2,8 +2,10 @@ FactoryBot.define do
   factory :language do
     sequence(:name) { |n| "English #{n}" }
     sequence(:code) do |n|
-      suffix = (n - 1).to_s(26).tr("0-9a-p", "a-q")
-      "en#{suffix}"
+      index = n - 1
+      first = (index / 26) % 26
+      second = index % 26
+      "#{(97 + first).chr}#{(97 + second).chr}"
     end
   end
 

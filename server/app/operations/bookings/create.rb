@@ -37,7 +37,7 @@ module Bookings
     end
 
     def find_show(ctx, params:, **)
-      ctx[:show] = Show.includes(
+      ctx[:show] = ::Show.includes(
         seat_layout: { seat_sections: {} },
         show_section_prices: {}
       ).find_by(id: params[:show_id])

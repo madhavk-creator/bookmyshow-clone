@@ -25,8 +25,6 @@ module Api
       # POST /api/v1/languages  or  /api/v1/formats
       # Admin or Vendor.
       def create
-        authorize model_class
-
         result = run(create_operation, params: permitted_params.to_h.deep_symbolize_keys) do |operation_result|
           return render json: serialize(operation_result[:model]), status: :created
         end
@@ -37,15 +35,9 @@ module Api
       # PATCH /api/v1/languages/:id  or  /api/v1/formats/:id
       # Admin or Vendor.
       def update
-        record = model_class.find_by(id: params[:id])
-        return not_found unless record
-
-        authorize record
-
         result = run(
           update_operation,
-          params: permitted_params.to_h.deep_symbolize_keys,
-          model: record
+          params: permitted_params.to_h.deep_symbolize_keys.merge(id: params[:id])
         ) do |operation_result|
           return render json: serialize(operation_result[:model])
         end
@@ -56,12 +48,7 @@ module Api
       # DELETE /api/v1/languages/:id  or  /api/v1/formats/:id
       # Admin or Vendor.
       def destroy
-        record = model_class.find_by(id: params[:id])
-        return not_found unless record
-
-        authorize record
-
-        result = run(destroy_operation, model: record) do
+        result = run(destroy_operation, params: { id: params[:id] }) do
           return render json: { message: "#{model_class.name} deleted successfully" }
         end
 
@@ -71,13 +58,19 @@ module Api
       private
 
       def model_class       = raise NotImplementedError
+
       def index_operation   = raise NotImplementedError
+
       def create_operation  = raise NotImplementedError
+
       def update_operation  = raise NotImplementedError
+
       def destroy_operation = raise NotImplementedError
+
       def serialize(_)      = raise NotImplementedError
 
       def permitted_params = params.require(model_class.name.downcase.to_sym).permit(:name, :code)
+        
       def index_params = params.permit(:q).to_h.deep_symbolize_keys
 
       def render_operation_errors(result)

@@ -2,12 +2,31 @@ module Movies
   class Update < ::Trailblazer::Operation
     include AssociationValidationSupport
 
+    step :find_movie
+    step :authorize_movie
     step :assign_attributes
     step :validate_languages
     step :validate_formats
     step :validate_cast_members
     step :persist_changes
     fail :collect_errors
+
+    def find_movie(ctx, params:, model: nil, **)
+      return true if model.present?
+
+      ctx[:model] = ::Movie.includes(:movie_languages, :movie_formats, :cast_members).find_by(id: params[:id])
+      return true if ctx[:model]
+
+      ctx[:errors] = { base: [ "Movie not found" ] }
+      false
+    end
+
+    def authorize_movie(ctx, model:, current_user:, **)
+      return true if Pundit.policy!(current_user, model).update?
+
+      ctx[:errors] = { base: [ "Not authorized to update this movie" ] }
+      false
+    end
 
     def assign_attributes(ctx, params:, model:, **)
       allowed = %i[title genre rating description director running_time release_date]

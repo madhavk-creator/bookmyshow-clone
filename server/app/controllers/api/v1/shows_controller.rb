@@ -59,9 +59,7 @@ module Api
       private
 
       def index_params
-        params.permit(:screen_id, :status, :movie_id, :date, :language, :format, :city_id, :page, :per_page)
-              .to_h
-              .deep_symbolize_keys
+        params.permit(:screen_id, :status, :movie_id, :date, :language, :format, :city_id, :page, :per_page).to_h.deep_symbolize_keys
       end
 
       def show_lookup_params

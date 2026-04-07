@@ -3,6 +3,7 @@ require "rails_helper"
 RSpec.describe Movies::Create do
   context "with valid parameters" do
     it "creates a movie with associated languages, formats, and cast members" do
+      admin = create(:user, :admin)
       english = create(:language, name: "English", code: "en")
       french = create(:language, name: "French", code: "fr")
       two_d = create(:format, name: "2D", code: "2d")
@@ -27,7 +28,7 @@ RSpec.describe Movies::Create do
         ]
       }
 
-      result = Movies::Create.call(params: params)
+      result = Movies::Create.call(current_user: admin, params: params)
 
       expect(result).to be_success
       movie = result[:model]

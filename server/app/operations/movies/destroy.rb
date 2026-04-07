@@ -1,7 +1,26 @@
 module Movies
   class Destroy < ::Trailblazer::Operation
+    step :find_movie
+    step :authorize_movie
     step :destroy_movie
     fail :collect_errors
+
+    def find_movie(ctx, params:, model: nil, **)
+      return true if model.present?
+
+      ctx[:model] = ::Movie.find_by(id: params[:id])
+      return true if ctx[:model]
+
+      ctx[:errors] = { base: [ "Movie not found" ] }
+      false
+    end
+
+    def authorize_movie(ctx, model:, current_user:, **)
+      return true if Pundit.policy!(current_user, model).destroy?
+
+      ctx[:errors] = { base: [ "Not authorized to delete this movie" ] }
+      false
+    end
 
     def destroy_movie(ctx, model:, **)
       return true if model.destroy

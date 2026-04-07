@@ -2,12 +2,20 @@ module Movies
   class Create < ::Trailblazer::Operation
     include AssociationValidationSupport
 
+    step :authorize_create
     step :build_movie
     step :validate_languages
     step :validate_formats
     step :validate_cast_members
     step :persist_changes
     fail :collect_errors
+
+    def authorize_create(ctx, current_user:, **)
+      return true if Pundit.policy!(current_user, ::Movie).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create movie" ] }
+      false
+    end
 
     def build_movie(ctx, params:, **)
       ctx[:model] = ::Movie.new(movie_attributes(params))

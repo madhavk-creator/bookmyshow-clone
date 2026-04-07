@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe Movies::Update do
   let(:movie) { create(:movie, title: "Original Title", description: "Original Description", director: "Original Director", running_time: 100, release_date: "2023-01-01") }
+  let(:admin) { create(:user, :admin) }
 
   context "with valid parameters" do
     it "updates the movie and its associations" do
@@ -32,7 +33,7 @@ RSpec.describe Movies::Update do
         ]
       }
 
-      result = Movies::Update.call(model: movie, params: params)
+      result = Movies::Update.call(current_user: admin, model: movie, params: params)
 
       expect(result).to be_success
       updated_movie = result[:model]

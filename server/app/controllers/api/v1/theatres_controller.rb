@@ -6,74 +6,54 @@ module Api
       # GET /api/v1/theatres
       # Public. Supports ?city_id= and ?vendor_id= filters.
       def index
-        result = run(
-          Theatres::Index,
-          current_user: current_user,
-          params: {
-            city_id: params[:city_id],
-            vendor_id: params[:vendor_id],
-            page: params[:page],
-            per_page: params[:per_page]
-          }
-        ) do |operation_result|
+        result = run Theatres::Index, params: index_params do |operation_result|
           return render json: {
-            theatres: serialize_many(operation_result[:records]),
+            theatres: Theatres::Serializer.many(operation_result[:records]),
             pagination: operation_result[:pagination]
-          }
+          }, status: :ok
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # GET /api/v1/theatres/:id
       # Public.
       def show
-        theatre = Theatre.find_by(id: params[:id])
-        return not_found unless theatre
+        result = run Theatres::Show, params: { id: params[:id] } do |operation_result|
+          return render json: Theatres::Serializer.call(operation_result[:model]), status: :ok
+        end
 
-        render json: serialize(theatre)
+        render_operation_errors(result)
       end
 
       # POST /api/v1/theatres
       # Vendor or Admin.
       def create
-        authorize Theatre
-
-        result = run(Theatres::Create, params: theatre_params.to_h, current_user: current_user) do |operation_result|
-          return render json: serialize(operation_result[:model]), status: :created
+        result = run Theatres::Create, params: theatre_params.to_h.deep_symbolize_keys do |operation_result|
+          return render json: Theatres::Serializer.call(operation_result[:model]), status: :created
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # PATCH /api/v1/theatres/:id
       # Owning vendors or Admin.
       def update
-        theatre = Theatre.find_by(id: params[:id])
-        return not_found unless theatre
-
-        authorize theatre
-
-        result = run(Theatres::Update, params: theatre_params.to_h.merge(id: params[:id])) do |operation_result|
-          return render json: serialize(operation_result[:model])
+        result = run Theatres::Update, params: theatre_params.to_h.deep_symbolize_keys.merge(id: params[:id]) do |operation_result|
+          return render json: Theatres::Serializer.call(operation_result[:model]), status: :ok
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       # DELETE /api/v1/theatres/:id
       # Owning vendors or Admin.
       def destroy
-        theatre = Theatre.find_by(id: params[:id])
-        return not_found unless theatre
-
-        authorize theatre
-
-        result = run(Theatres::Destroy, params: { id: params[:id] }) do
+        result = run Theatres::Destroy, params: { id: params[:id] } do
           return render json: { message: "Theatre deleted successfully" }
         end
 
-        render json: { errors: result[:errors] }, status: :unprocessable_entity
+        render_operation_errors(result)
       end
 
       private
@@ -83,22 +63,22 @@ module Api
         :city_id, :city_name, :city_state, :vendor_id
       )
 
-      def serialize(theatre)
-        {
-          id:             theatre.id,
-          vendor_id:      theatre.vendor_id,
-          name:           theatre.name,
-          building_name:  theatre.building_name,
-          street_address: theatre.street_address,
-          city:           { id: theatre.city.id, name: theatre.city.name, state: theatre.city.state },
-          pincode:        theatre.pincode,
-          created_at:     theatre.created_at
-        }
+      def index_params
+        params.permit(:city_id, :vendor_id, :page, :per_page).to_h.deep_symbolize_keys
       end
 
-      def serialize_many(theatres) = theatres.map { |t| serialize(t) }
+      def render_operation_errors(result)
+        errors = result[:errors].presence || { base: [ "Theatre request failed" ] }
+        render json: { errors: errors }, status: error_status_for(errors)
+      end
 
-      def not_found = render(json: { error: "Theatre not found" }, status: :not_found)
+      def error_status_for(errors)
+        messages = errors.values.flatten.map(&:to_s)
+        return :not_found if messages.any? { |message| message.downcase.include?("not found") }
+        return :forbidden if messages.any? { |message| message.start_with?("Not authorized") || message == "Forbidden" }
+
+        :unprocessable_entity
+      end
     end
   end
 end

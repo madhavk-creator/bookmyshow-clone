@@ -1,8 +1,16 @@
 module Formats
   class Create < ::Trailblazer::Operation
+    step :authorize_create
     step :build
     step :persist
     fail :collect_errors
+
+    def authorize_create(ctx, current_user:, **)
+      return true if Pundit.policy!(current_user, ::Format).create?
+
+      ctx[:errors] = { base: [ "Not authorized to create format" ] }
+      false
+    end
 
     def build(ctx, params:, **)
       ctx[:model] = ::Format.new(
@@ -15,8 +23,8 @@ module Formats
       model.save
     end
 
-    def collect_errors(ctx, model:, **)
-      ctx[:errors] ||= model.errors.to_hash(true)
+    def collect_errors(ctx, model: nil, **)
+      ctx[:errors] ||= model&.errors&.to_hash(true) || {}
     end
   end
 end

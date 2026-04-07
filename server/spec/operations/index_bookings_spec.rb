@@ -14,7 +14,7 @@ RSpec.describe Bookings::Index do
     allow(Pagination).to receive(:apply).with(scoped_relation, hash_including(page: 1, per_page: 20)).and_return([ records, pagination ])
     allow(booking).to receive(:refresh_expiration!).and_return(booking)
 
-    result = described_class(current_user: current_user)
+    result = described_class.call(current_user: current_user, params: { page: 1, per_page: 20 })
 
     expect(result).to be_success
     expect(result[:records]).to eq(records)
