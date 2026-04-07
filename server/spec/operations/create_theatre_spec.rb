@@ -2,8 +2,8 @@ require "rails_helper"
 
 RSpec.describe Theatres::Create do
   it "creates a theatre for the current vendor using an existing city" do
-    vendor = build_user(role: :vendor, email_prefix: "vendor", phone: "9876543210")
-    city = build_city
+    vendor = create(:user, :vendor)
+    city = create(:city)
 
     result = Theatres::Create.call(
       current_user: vendor,

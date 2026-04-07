@@ -42,7 +42,7 @@ module Users
     end
 
     def collect_errors(ctx, **)
-      ctx[:errors] = ctx[:model]&.errors&.to_hash(true) || { base: [ "User could not be created" ] }
+      ctx[:errors] ||= ctx[:model]&.errors&.to_hash(true) || { base: [ "User could not be created" ] }
     end
 
     private

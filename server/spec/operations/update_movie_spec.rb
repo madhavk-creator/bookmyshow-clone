@@ -1,24 +1,14 @@
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe Movies::Update do
-  let(:movie) do
-    Movie.create!(
-      title: "Original Title",
-      genre: "Drama",
-      rating: "UA",
-      description: "Original Description",
-      director: "Original Director",
-      running_time: 100,
-      release_date: "2023-01-01"
-    )
-  end
+  let(:movie) { create(:movie, title: "Original Title", description: "Original Description", director: "Original Director", running_time: 100, release_date: "2023-01-01") }
 
   context "with valid parameters" do
     it "updates the movie and its associations" do
-      spanish = Language.find_or_create_by!(code: "es") { |language| language.name = "Spanish" }
-      german = Language.find_or_create_by!(code: "de") { |language| language.name = "German" }
-      imax = Format.find_or_create_by!(code: "imax") { |format| format.name = "IMAX" }
-      four_dx = Format.find_or_create_by!(code: "4dx") { |format| format.name = "4DX" }
+      spanish = create(:language, name: "Spanish", code: "es")
+      german = create(:language, name: "German", code: "de")
+      imax = create(:format, name: "IMAX", code: "imax")
+      four_dx = create(:format, name: "4DX", code: "4dx")
 
       params = {
         title: "Updated Title",
@@ -37,8 +27,8 @@ RSpec.describe Movies::Update do
           four_dx.id
         ],
         cast_members: [
-          { name: "Updated Actor", role: "actor", character_name: "Updated Character" },
-          { name: "Updated Director", role: "director" }
+          attributes_for(:cast_member, name: "Updated Actor", role: "actor", character_name: "Updated Character").slice(:name, :role, :character_name),
+          attributes_for(:cast_member, name: "Updated Director", role: "director", character_name: nil).slice(:name, :role, :character_name)
         ]
       }
 

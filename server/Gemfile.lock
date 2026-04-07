@@ -119,6 +119,8 @@ GEM
     erubi (1.13.1)
     et-orbi (1.4.0)
       tzinfo
+    factory_bot (6.5.6)
+      activesupport (>= 6.1.0)
     ffi (1.17.3-aarch64-linux-gnu)
     ffi (1.17.3-aarch64-linux-musl)
     ffi (1.17.3-arm-linux-gnu)
@@ -444,6 +446,7 @@ DEPENDENCIES
   debug
   devise (~> 5.0)
   dotenv-rails (~> 3.2)
+  factory_bot (~> 6.5)
   image_processing (~> 1.2)
   jwt (~> 3.1)
   kamal

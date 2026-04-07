@@ -2,11 +2,10 @@ require "rails_helper"
 
 RSpec.describe Screens::Create do
   it "creates a screen with selected format capabilities for the theatre owner" do
-    vendor = build_user(role: :vendor, email_prefix: "vendor", phone: "9876543210")
-    city = build_city
-    theatre = build_theatre_for(vendor: vendor, city: city)
-    format_one = Format.create!(name: "IMAX#{SecureRandom.hex(2)}", code: "imax#{SecureRandom.hex(2)}")
-    format_two = Format.create!(name: "FOURDX#{SecureRandom.hex(2)}", code: "4dx#{SecureRandom.hex(2)}")
+    vendor = create(:user, :vendor)
+    theatre = create(:theatre, vendor: vendor)
+    format_one = create(:format)
+    format_two = create(:format, name: "FOURDX", code: "4dx")
 
     result = Screens::Create.call(
       current_user: vendor,

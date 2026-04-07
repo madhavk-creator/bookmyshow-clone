@@ -2,13 +2,15 @@ require "rails_helper"
 
 RSpec.describe Bookings::Create do
   it "creates a pending booking with tickets and payment" do
-    fixture = build_booking_fixture(seat_count: 3)
+    customer = create(:user)
+    show = create(:show, :bookable, seat_count: 3, base_price: 100)
+    seats = show.seat_layout.seats.order(:seat_number)
 
     result = Bookings::Create.call(
-      current_user: fixture[:customer],
+      current_user: customer,
       params: {
-        show_id: fixture[:show].id,
-        seat_ids: fixture[:seats].first(2).map(&:id)
+        show_id: show.id,
+        seat_ids: seats.first(2).map(&:id)
       }
     )
 
@@ -21,15 +23,17 @@ RSpec.describe Bookings::Create do
   end
 
   it "fails before locking or pricing when any requested seat id is invalid" do
-    fixture = build_booking_fixture(seat_count: 2)
+    customer = create(:user)
+    show = create(:show, :bookable, seat_count: 2)
+    seats = show.seat_layout.seats.order(:seat_number)
     booking_count = Booking.count
     seat_state_count = ShowSeatState.count
 
     result = Bookings::Create.call(
-      current_user: fixture[:customer],
+      current_user: customer,
       params: {
-        show_id: fixture[:show].id,
-        seat_ids: [ fixture[:seats].first.id, SecureRandom.uuid ]
+        show_id: show.id,
+        seat_ids: [ seats.first.id, SecureRandom.uuid ]
       }
     )
 
