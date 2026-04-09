@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Ticket, Plus, Trash2, Calendar, Loader, Tag, AlertCircle } from 'lucide-react'
-import { api, extractApiError } from '../../utils/api'
+import DateFieldPanel from '../../components/DateFieldPanel'
+import { api } from '../../utils/api'
+import { isBeforeLocalDateTime, toLocalDateTimeValue } from '../../utils/dateInput'
 import { showSuccessToast, showApiErrorToast } from '../../utils/toast'
 
 export default function AdminCoupons() {
@@ -8,6 +10,7 @@ export default function AdminCoupons() {
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState(null)
   
   const [formData, setFormData] = useState({
     code: '',
@@ -40,8 +43,22 @@ export default function AdminCoupons() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
+    setFormError(null)
 
-    // Clean up empty strings to nil
+    const minimumDateTime = toLocalDateTimeValue()
+
+    if (isBeforeLocalDateTime(formData.valid_from, minimumDateTime)) {
+      setFormError('Valid from cannot be in the past.')
+      setSubmitting(false)
+      return
+    }
+
+    if (!formData.valid_until || formData.valid_until <= formData.valid_from) {
+      setFormError('Valid until must be later than valid from.')
+      setSubmitting(false)
+      return
+    }
+
     const payload = { ...formData }
     if (payload.coupon_type === 'percentage') delete payload.discount_amount
     if (payload.coupon_type === 'amount') delete payload.discount_percentage
@@ -50,11 +67,20 @@ export default function AdminCoupons() {
       if (payload[k] === '') payload[k] = null
     })
 
+    if (payload.discount_percentage != null) payload.discount_percentage = Number(payload.discount_percentage)
+    if (payload.discount_amount != null) payload.discount_amount = Number(payload.discount_amount)
+    if (payload.minimum_booking_amount != null) payload.minimum_booking_amount = Number(payload.minimum_booking_amount)
+    if (payload.max_uses_per_user != null) payload.max_uses_per_user = Number(payload.max_uses_per_user)
+    if (payload.max_total_uses != null) payload.max_total_uses = Number(payload.max_total_uses)
+    if (payload.valid_from) payload.valid_from = new Date(payload.valid_from).toISOString()
+    if (payload.valid_until) payload.valid_until = new Date(payload.valid_until).toISOString()
+
     try {
       const { data } = await api.post('/api/v1/admin/coupons', { coupon: payload })
       setCoupons([data, ...coupons])
       showSuccessToast('Coupon created successfully')
       setIsModalOpen(false)
+      setFormError(null)
       setFormData({
         code: '', coupon_type: 'percentage', discount_percentage: '', discount_amount: '',
         valid_from: '', valid_until: '', minimum_booking_amount: '', max_uses_per_user: '', max_total_uses: ''
@@ -90,7 +116,10 @@ export default function AdminCoupons() {
           </div>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setFormError(null)
+            setIsModalOpen(true)
+          }}
           className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary-500/25 flex items-center gap-2"
         >
           <Plus className="w-5 h-5" /> New Coupon
@@ -116,7 +145,9 @@ export default function AdminCoupons() {
               
               <div className="flex justify-between items-start mb-4">
                 <div className="inline-flex px-3 py-1 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-                  <span className="font-mono font-black text-xl text-primary-600 dark:text-primary-400 tracking-wider uppercase">{coupon.code}</span>
+                  <span className="font-mono font-black text-xl text-primary-600 dark:text-primary-400 tracking-[0.18em] uppercase [font-feature-settings:'zero'_1]">
+                    {coupon.code}
+                  </span>
                 </div>
                 <button onClick={() => handleDelete(coupon.id)} className="text-neutral-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-500/10">
                   <Trash2 className="w-4 h-4" />
@@ -160,11 +191,21 @@ export default function AdminCoupons() {
             <h2 className="text-2xl font-black text-neutral-900 dark:text-white mb-6">Create New Coupon</h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+              {formError ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p className="font-medium">{formError}</p>
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-1">Coupon Code</label>
                   <input type="text" required value={formData.code} onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                    placeholder="e.g. SUMMER20" className="w-full font-mono font-bold tracking-widest uppercase p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
+                    placeholder="e.g. SUMMER20" className="w-full font-mono font-bold tracking-[0.18em] uppercase [font-feature-settings:'zero'_1] p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
+                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    Double-check similar characters like <span className="font-mono [font-feature-settings:'zero'_1]">O</span> and <span className="font-mono [font-feature-settings:'zero'_1]">0</span>.
+                  </p>
                 </div>
                 
                 <div>
@@ -179,24 +220,42 @@ export default function AdminCoupons() {
                 <div>
                   <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-1">Value</label>
                   {formData.coupon_type === 'percentage' ? (
-                    <input type="number" required min="1" max="100" value={formData.discount_percentage} onChange={e => setFormData({...formData, discount_percentage: e.target.value})}
+                    <input type="number" required min="1" max="100" step="0.01" value={formData.discount_percentage} onChange={e => setFormData({...formData, discount_percentage: e.target.value})}
                       placeholder="%" className="w-full p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
                   ) : (
-                    <input type="number" required min="1" value={formData.discount_amount} onChange={e => setFormData({...formData, discount_amount: e.target.value})}
+                    <input type="number" required min="1" step="0.01" value={formData.discount_amount} onChange={e => setFormData({...formData, discount_amount: e.target.value})}
                       placeholder="₹" className="w-full p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-1">Valid From</label>
-                  <input type="datetime-local" required value={formData.valid_from} onChange={e => setFormData({...formData, valid_from: e.target.value})}
-                    className="w-full p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
+                  <DateFieldPanel
+                    icon={Calendar}
+                    label="Valid From"
+                    type="datetime-local"
+                    name="valid_from"
+                    value={formData.valid_from}
+                    onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
+                    min={toLocalDateTimeValue()}
+                    required
+                    hint="Start date must be now or later."
+                    error={formError === 'Valid from cannot be in the past.' ? formError : undefined}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-1">Valid Until</label>
-                  <input type="datetime-local" required value={formData.valid_until} onChange={e => setFormData({...formData, valid_until: e.target.value})}
-                    className="w-full p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
+                  <DateFieldPanel
+                    icon={Calendar}
+                    label="Valid Until"
+                    type="datetime-local"
+                    name="valid_until"
+                    value={formData.valid_until}
+                    onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
+                    min={formData.valid_from || toLocalDateTimeValue()}
+                    required
+                    hint="Choose an end date after the start date."
+                    error={formError === 'Valid until must be later than valid from.' ? formError : undefined}
+                  />
                 </div>
 
                 <div className="col-span-2">
@@ -207,7 +266,7 @@ export default function AdminCoupons() {
                   <label className="flex items-center gap-2 text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-1">
                     Minimum Booking Amount <span className="text-neutral-400 font-normal">(Optional)</span>
                   </label>
-                  <input type="number" min="0" value={formData.minimum_booking_amount} onChange={e => setFormData({...formData, minimum_booking_amount: e.target.value})}
+                  <input type="number" min="0" step="0.01" value={formData.minimum_booking_amount} onChange={e => setFormData({...formData, minimum_booking_amount: e.target.value})}
                     placeholder="₹ 0.00" className="w-full p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
                 </div>
 
@@ -225,7 +284,7 @@ export default function AdminCoupons() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 px-4 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white rounded-xl font-bold transition-all">
+                <button type="button" onClick={() => { setFormError(null); setIsModalOpen(false) }} className="flex-1 py-3 px-4 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white rounded-xl font-bold transition-all">
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting} className="flex-1 py-3 px-4 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2">

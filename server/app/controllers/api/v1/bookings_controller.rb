@@ -7,14 +7,13 @@ module Api
       def index
         result = run Bookings::Index, params: index_params do |operation_result|
           return render json: {
-            data: Bookings::Serializer.many(operation_result[:records]),
+            bookings: Bookings::Serializer.many(operation_result[:records]),
             pagination: operation_result[:pagination]
           }, status: :ok
         end
 
         render_operation_errors(result)
       end
-
 
       # GET /api/v1/bookings/:id
       def show
@@ -75,19 +74,7 @@ module Api
 
       def booking_params = params.require(:booking).permit(:show_id, :coupon_code, seat_ids: [])
 
-      def index_params = params.permit(:page, :per_page).to_h.deep_symbolize_keys
-
-      def render_errors(errors, status: :unprocessable_entity) = render(json: { errors: errors }, status:)
-
-      def render_operation_errors(result) = render_errors(result[:errors], status: error_status_for(result[:errors]))
-
-      def error_status_for(errors)
-        flat_errors = errors.to_h.values.flatten
-        return :not_found if flat_errors.include?("Not found")
-        return :forbidden if flat_errors.any? { |message| message.to_s.start_with?("Not authorized") }
-
-        :unprocessable_entity
-      end
+      def index_params = params.permit(:page, :per_page, booking: {}).to_h.deep_symbolize_keys
     end
   end
 end

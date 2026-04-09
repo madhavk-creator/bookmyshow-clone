@@ -130,6 +130,11 @@ export const apiSlice = createApi({
       query: (vendorId) => `/api/v1/vendors/${vendorId}/income`,
       providesTags: (_result, _error, vendorId) => [{ type: 'Vendor', id: vendorId }],
     }),
+    getVendorShowsSummary: builder.query({
+      query: (vendorId) => `/api/v1/vendors/${vendorId}/shows_summary`,
+      transformResponse: (response) => response?.shows || [],
+      providesTags: (_result, _error, vendorId) => [{ type: 'Vendor', id: `shows-${vendorId}` }],
+    }),
     getVendorSummaries: builder.query({
       async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
         const vendorsResult = await fetchWithBQ('/api/v1/vendors')
@@ -407,6 +412,7 @@ export const {
   useGetTheatreQuery,
   useGetTheatresQuery,
   useGetVendorIncomeQuery,
+  useGetVendorShowsSummaryQuery,
   useGetVendorSummariesQuery,
   useGetVendorsQuery,
   usePublishSeatLayoutMutation,

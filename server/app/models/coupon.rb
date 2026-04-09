@@ -7,13 +7,21 @@ class Coupon < ApplicationRecord
   before_validation :normalize_code
 
   validates :code, :coupon_type, :valid_from, :valid_until, presence: true
+
   validates :code, uniqueness: { case_sensitive: false }
+
   validates :discount_amount, numericality: { greater_than: 0 }, allow_nil: true
-  validates :discount_percentage, numericality: { greater_than: 0, less_than_or_equal_to: 100 }, allow_nil: true
-  validates :minimum_booking_amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+
+  validates :discount_percentage, numericality: { greater_than: 0, less_than_or_equal_to: 100 },
+            allow_nil: true
+
+  validates :minimum_booking_amount, numericality: { greater_than_or_equal_to: 0 },
+            allow_nil: true
+
   validates :max_uses_per_user, :max_total_uses,
             numericality: { only_integer: true, greater_than: 0 },
             allow_nil: true
+
   validate :validity_window_order
   validate :discount_fields_match_type
 

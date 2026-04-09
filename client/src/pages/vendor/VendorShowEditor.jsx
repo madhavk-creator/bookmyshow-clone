@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Save, Loader, AlertTriangle, Calendar, Layers, Popcorn, Languages, Video, FileText } from 'lucide-react'
+import DateFieldPanel from '../../components/DateFieldPanel'
 import { useCreateShowMutation, useGetMoviesQuery, useGetSeatLayoutQuery, useGetSeatLayoutsQuery, useGetShowQuery, useUpdateShowMutation } from '../../store/apiSlice'
 import { extractApiError } from '../../utils/api'
+import { isBeforeLocalDateTime, toLocalDateTimeValue } from '../../utils/dateInput'
 import { showApiErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
 
 export default function VendorShowEditor() {
@@ -42,6 +44,7 @@ export default function VendorShowEditor() {
   )
   const selectedLayoutSections = selectedLayoutDetail?.sections || []
   const loading = moviesLoading || layoutsLoading || (isEditing && showLoading) || layoutDetailLoading
+  const minimumStartTime = toLocalDateTimeValue()
 
   useEffect(() => {
     if (!isEditing || !showData || movies.length === 0) return
@@ -122,6 +125,16 @@ export default function VendorShowEditor() {
     }))
   }
 
+  const getShowSaveErrorMessage = (err) => {
+    const message = extractApiError(err, 'Failed to save show')
+
+    if (message.includes('This screen already has a show scheduled during this time')) {
+      return 'You have another show running in the same screen, please select a different time.'
+    }
+
+    return message
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
@@ -134,9 +147,17 @@ export default function VendorShowEditor() {
       setSubmitting(false)
       return
     }
+
+    if (isBeforeLocalDateTime(formData.start_time, minimumStartTime)) {
+      setError('Show time cannot be in the past.')
+      showWarningToast('Show time cannot be in the past.')
+      setSubmitting(false)
+      return
+    }
     
     for (const sp of formData.section_prices) {
-      if (!sp.base_price || isNaN(sp.base_price) || Number(sp.base_price) < 0) {
+      const basePrice = Number(sp.base_price)
+      if (sp.base_price === '' || !Number.isFinite(basePrice) || basePrice < 0) {
         setError('Please enter a valid positive base price for all sections.')
         showWarningToast('Please enter a valid positive base price for all sections.')
         setSubmitting(false)
@@ -170,8 +191,9 @@ export default function VendorShowEditor() {
       showSuccessToast(`Show ${isEditing ? 'updated' : 'scheduled'} successfully.`)
       navigate(`/vendor/shows/${theatreId}/${screenId}`)
     } catch (err) {
-      setError(extractApiError(err, 'Failed to save show'))
-      showApiErrorToast(err, 'Failed to save show')
+      const errorMessage = getShowSaveErrorMessage(err)
+      setError(errorMessage)
+      showApiErrorToast({ error: errorMessage }, errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -232,15 +254,17 @@ export default function VendorShowEditor() {
             </div>
             
             <div className="space-y-2">
-              <label className="flex items-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                <Calendar className="w-4 h-4 mr-2 text-purple-500" /> Date & Time *
-              </label>
-              <input 
-                type="datetime-local" 
+              <DateFieldPanel
+                icon={Calendar}
+                label="Date & Time"
+                type="datetime-local"
                 name="start_time" 
                 value={formData.start_time} 
                 onChange={handleChange}
-                className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/50"
+                min={minimumStartTime}
+                required
+                hint="Only future showtimes are allowed. The selected time uses the browser's local timezone."
+                error={error === 'Show time cannot be in the past.' ? error : undefined}
               />
             </div>
 

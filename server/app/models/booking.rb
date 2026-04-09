@@ -4,19 +4,24 @@ class Booking < ApplicationRecord
   belongs_to :coupon, optional: true
 
   has_many :tickets, dependent: :destroy
+
   has_many :payments, dependent: :destroy
+
   has_many :user_coupon_usages, dependent: :destroy
 
-  enum :status, { pending: "pending", confirmed: "confirmed", cancelled: "cancelled", expired: "expired" }, prefix: true
+  enum :status, { pending: "pending", confirmed: "confirmed",
+    cancelled: "cancelled", expired: "expired" }, prefix: true
 
   before_validation :assign_booking_time, on: :create
 
   validates :booking_time, :status, presence: true
+
   validates :total_amount, numericality: { greater_than_or_equal_to: 0 }
+
   validates :lock_token, presence: true, uniqueness: true
 
   def valid_tickets_subtotal
-    tickets.where(status: "valid").sum(:price).to_d
+    tickets.where(status: "valid").sum(:price).to_f
   end
 
   def refresh_expiration!

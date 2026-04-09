@@ -30,7 +30,7 @@ module Api
       # Admin only.
       def create
         result = run(Movies::Create, params: movie_params.to_h.deep_symbolize_keys) do |operation_result|
-          return render json: Movies::Serializer.call(operation_result[:model]), status: :created
+          return render json: Movies::Serializer.call(operation_result[:model], detailed: true), status: :created
         end
 
         render_operation_errors(result)
@@ -40,7 +40,7 @@ module Api
       # Admin only.
       def update
         result = run Movies::Update, params: movie_params.to_h.deep_symbolize_keys.merge(id: params[:id]) do |operation_result|
-          return render json: Movies::Serializer.call(operation_result[:model]), status: :ok
+          return render json: Movies::Serializer.call(operation_result[:model], detailed: true), status: :ok
         end
 
         render_operation_errors(result)
@@ -69,19 +69,7 @@ module Api
       end
 
       def index_params
-        params.permit(:genre, :language, :format, :city_id, :page, :per_page).to_h.deep_symbolize_keys
-      end
-
-      def render_operation_errors(result)
-        render json: { errors: result[:errors] }, status: error_status_for(result[:errors])
-      end
-
-      def error_status_for(errors)
-        flat_errors = errors.to_h.values.flatten
-        return :not_found if flat_errors.include?("Not found") || flat_errors.include?("Movie not found")
-        return :forbidden if flat_errors.any? { |message| message.to_s.start_with?("Not authorized") }
-
-        :unprocessable_entity
+        params.permit(:genre, :language, :format, :city_id, :page, :per_page, movie: {}).to_h.deep_symbolize_keys
       end
 
       def not_found = render(json: { error: "Movie not found" }, status: :not_found)

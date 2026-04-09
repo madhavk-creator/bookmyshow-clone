@@ -24,7 +24,7 @@ RSpec.describe Bookings::CancelTicket do
     )
 
     expect(result).to be_success
-    expect(result[:model].reload.total_amount.to_d).to eq(50.to_d)
+    expect(result[:model].reload.total_amount).to eq(50.0)
     expect(tickets.first.reload.status).to eq("cancelled")
     expect(tickets.last.reload.status).to eq("valid")
     expect(payment.reload.status).to eq("completed")

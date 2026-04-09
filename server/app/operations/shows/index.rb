@@ -3,17 +3,24 @@ module Shows
     step :load_shows
 
     def load_shows(ctx, current_user: nil, params: {}, **)
-      scope = Pundit.policy_scope!(current_user, Show)
+      ::Show.sync_finished_statuses!
+
+      scope = Pundit.policy_scope!(current_user, ::Show)
                     .includes(:movie, :movie_language, :movie_format,
                               :show_section_prices, screen: :theatre)
 
       scope = scope.where(screen_id: params[:screen_id]) if params[:screen_id].present?
-      scope = params[:status].present? ? scope.where(status: params[:status]) : scope.where(status: "scheduled")
+      status_filter = params[:status].presence || "scheduled"
+      scope = scope.where(status: status_filter)
       scope = scope.where(movie_id: params[:movie_id]) if params[:movie_id].present?
 
       if params[:date].present?
         date = Date.parse(params[:date]) rescue nil
         scope = scope.where(start_time: date.beginning_of_day..date.end_of_day) if date
+      end
+
+      if status_filter == "scheduled"
+        scope = scope.where("start_time >= ?", Time.current)
       end
 
       if params[:language].present?

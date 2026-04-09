@@ -69,3 +69,48 @@ RSpec.describe SeatLayouts::Update do
     expect(result[:errors]).to eq(base: [ "Not authorized to update this layout" ])
   end
 end
+
+RSpec.describe SeatLayouts::Publish do
+  it "archives an older published layout before publishing a new draft layout" do
+    vendor = create(:user, :vendor)
+    theatre = create(:theatre, vendor: vendor)
+    screen = create(:screen, theatre: theatre)
+    old_layout = create(:seat_layout, :published, screen: screen)
+    new_layout = create(:seat_layout, screen: screen)
+    section = create(:seat_section, seat_layout: new_layout)
+    create(:seat, seat_layout: new_layout, seat_section: section)
+
+    result = described_class.call(
+      current_user: vendor,
+      params: { theatre_id: theatre.id, screen_id: screen.id, id: new_layout.id }
+    )
+
+    expect(result).to be_success
+    expect(old_layout.reload.status).to eq("archived")
+    expect(new_layout.reload.status).to eq("published")
+  end
+
+  it "fails when the currently published layout still has upcoming scheduled shows" do
+    vendor = create(:user, :vendor)
+    theatre = create(:theatre, vendor: vendor)
+    screen = create(:screen, theatre: theatre)
+    old_layout = create(:seat_layout, :published, screen: screen)
+    create(:show, :bookable, screen: screen, seat_layout: old_layout)
+
+    new_layout = create(:seat_layout, screen: screen)
+    section = create(:seat_section, seat_layout: new_layout)
+    create(:seat, seat_layout: new_layout, seat_section: section)
+
+    result = described_class.call(
+      current_user: vendor,
+      params: { theatre_id: theatre.id, screen_id: screen.id, id: new_layout.id }
+    )
+
+    expect(result).not_to be_success
+    expect(result[:errors]).to eq(
+      base: [ "Cannot publish this layout while another published layout has upcoming scheduled shows" ]
+    )
+    expect(old_layout.reload.status).to eq("published")
+    expect(new_layout.reload.status).to eq("draft")
+  end
+end

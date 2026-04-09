@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { showApiErrorToast, showWarningToast } from '../utils/toast'
 import { Loader, MapPin, Calendar, Clock, Ticket } from 'lucide-react'
@@ -21,6 +21,11 @@ export default function PublicSeatSelection() {
     () => sections.flatMap((section) => section.seats.map((seat) => ({ ...seat, section }))),
     [sections]
   )
+
+  useEffect(() => {
+    setSelectedSeats([])
+    setBooking(false)
+  }, [showId])
 
   let totalRows = 0, totalColumns = 0
   seats.forEach(s => {

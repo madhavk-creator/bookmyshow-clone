@@ -11,6 +11,7 @@ module SeatLayouts
     step :authorize_publish
     step :validate_has_sections
     step :validate_has_seats
+    step :validate_republishable
     step :publish
     fail :collect_errors
 
@@ -56,10 +57,34 @@ module SeatLayouts
       true
     end
 
-    def publish(ctx, model:, **)
+    def validate_republishable(ctx, model:, **)
+      current_published_layout = model.screen.seat_layouts
+                                    .where(status: "published")
+                                    .where.not(id: model.id)
+                                    .first
+
+      ctx[:current_published_layout] = current_published_layout
+      return true unless current_published_layout
+
+      has_upcoming_shows = current_published_layout.shows
+                                                 .where(status: "scheduled")
+                                                 .where("start_time > ?", Time.current)
+                                                 .exists?
+
+      return true unless has_upcoming_shows
+
+      ctx[:errors] = {
+        base: [ "Cannot publish this layout while another published layout has upcoming scheduled shows" ]
+      }
+      false
+    end
+
+    def publish(ctx, model:, current_published_layout: nil, **)
       active_count = model.seats.where(is_active: true).count
 
       model.class.transaction do
+        current_published_layout&.update!(status: "archived")
+
         model.update!(
           status: "published",
           published_at: Time.current,

@@ -12,7 +12,7 @@ export default function UserSettings() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState('profile') // 'profile', 'password', 'notifications'
+  const [activeTab, setActiveTab] = useState('profile')
 
   // Profile Form State
   const [profileData, setProfileData] = useState({

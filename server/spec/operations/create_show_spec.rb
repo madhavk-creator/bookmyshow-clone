@@ -35,7 +35,7 @@ RSpec.describe Shows::Create do
     expect(show.screen).to eq(screen)
     expect(show.movie).to eq(movie)
     expect(show.show_section_prices.count).to eq(1)
-    expect(show.show_section_prices.first.base_price.to_d).to eq(250.to_d)
+    expect(show.show_section_prices.first.base_price).to eq(250.0)
   end
 
   it "fails when section prices are missing for a layout section" do

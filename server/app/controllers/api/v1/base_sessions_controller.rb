@@ -15,7 +15,7 @@ module Api
 
       # POST /api/v1/(users|vendors|admins)/login
       def create
-        result = run Users::Login, params: login_params, expected_role: expected_role do |operation_result|
+        result = run ::Users::Login, params: login_params, expected_role: expected_role do |operation_result|
           return render json: operation_result[:response_data], status: :ok
         end
 
@@ -26,7 +26,7 @@ module Api
 
       def expected_role = raise(NotImplementedError)
 
-      def login_params = params.permit(:email, :password).to_h.deep_symbolize_keys
+      def login_params = params.permit(:email, :password, session: {}).to_h.deep_symbolize_keys
     end
   end
 end

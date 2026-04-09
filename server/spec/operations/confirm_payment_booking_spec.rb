@@ -6,9 +6,18 @@ RSpec.describe Bookings::ConfirmPayment do
     show = create(:show, :bookable, seat_count: 2, base_price: 100)
     seats = show.seat_layout.seats.order(:seat_number)
     booking = create(:booking, user: customer, show: show, total_amount: 200, status: :pending)
+
     seats.each do |seat|
-      create(:ticket, booking: booking, show: show, seat: seat, price: 100, seat_label: seat.label, section_name: seat.seat_section.name)
-      create(:show_seat_state, show: show, seat: seat, locked_user: customer, lock_token: booking.lock_token, status: :locked)
+      create(:ticket, booking: booking,
+        show: show, seat: seat, price: 100,
+        seat_label: seat.label,
+        section_name: seat.seat_section.name
+      )
+      create(:show_seat_state,
+      show: show,
+      seat: seat,
+      locked_user: customer,
+      lock_token: booking.lock_token, status: :locked)
     end
     payment = create(:payment, booking: booking, user: customer, amount: 200, status: :pending)
 

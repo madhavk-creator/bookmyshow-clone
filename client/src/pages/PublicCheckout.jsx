@@ -184,7 +184,7 @@ export default function PublicCheckout() {
                 <h4 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Promotional Offers</h4>
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <input type="text" placeholder="Got a Promocode?" value={manualCode} onChange={e=>setManualCode(e.target.value.toUpperCase())}
-                    className="flex-1 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl outline-none uppercase font-bold text-sm focus:border-primary-500 transition-colors" />
+                    className="flex-1 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl outline-none uppercase font-mono font-bold tracking-[0.16em] [font-feature-settings:'zero'_1] text-sm focus:border-primary-500 transition-colors" />
                   <button onClick={() => handleApplyCoupon()} disabled={applyingCoupon || !manualCode.trim()} 
                     className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                     {applyingCoupon ? <Loader className="w-5 h-5 animate-spin" /> : 'Apply'}
@@ -195,7 +195,9 @@ export default function PublicCheckout() {
                   <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex justify-between items-center mb-6">
                      <div>
                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Coupon Applied!</span>
-                       <p className="text-lg font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">{booking.coupon.code}</p>
+                       <p className="text-lg font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-[0.18em] font-mono [font-feature-settings:'zero'_1]">
+                         {booking.coupon.code}
+                       </p>
                      </div>
                      <button onClick={() => handleApplyCoupon('')} disabled={applyingCoupon} className="text-sm font-bold text-red-500 hover:text-red-600 transition-colors">
                        Remove
@@ -212,7 +214,9 @@ export default function PublicCheckout() {
                         <div key={coupon.id} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${isApplicable ? 'bg-white dark:bg-neutral-900 border-primary-500/20 hover:border-primary-500/50' : 'bg-neutral-100 dark:bg-neutral-800/50 border-neutral-200 dark:border-neutral-700 opacity-50'}`}>
                           <div>
                              <div className="flex items-center gap-2 mb-1">
-                               <span className="px-2 py-0.5 bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 text-xs font-black uppercase tracking-wider rounded">{coupon.code}</span>
+                               <span className="px-2 py-0.5 bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 text-xs font-black uppercase tracking-[0.16em] font-mono [font-feature-settings:'zero'_1] rounded">
+                                 {coupon.code}
+                               </span>
                                <span className="font-bold text-neutral-900 dark:text-white">
                                  {coupon.coupon_type === 'percentage' ? `${parseFloat(coupon.discount_percentage)}% OFF` : `₹${parseFloat(coupon.discount_amount)} OFF`}
                                </span>

@@ -5,6 +5,6 @@ module Api::V1::Admin
 
     private
 
-    def operation_class = Admins::Register
+    def operation_class = ::Admins::Register
   end
 end

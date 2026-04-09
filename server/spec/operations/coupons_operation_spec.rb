@@ -24,8 +24,8 @@ RSpec.describe Coupons::Validate do
     expect(result).to be_success
     expect(result[:payload][:valid]).to eq(true)
     expect(result[:payload][:code]).to eq("SAVE25")
-    expect(result[:payload][:discount_amount].to_d).to eq(100.to_d)
-    expect(result[:payload][:final_amount].to_d).to eq(300.to_d)
+    expect(result[:payload][:discount_amount]).to eq(100.0)
+    expect(result[:payload][:final_amount]).to eq(300.0)
   end
 
   it "fails when coupon code is invalid" do

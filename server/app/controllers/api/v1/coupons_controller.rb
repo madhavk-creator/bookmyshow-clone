@@ -33,7 +33,8 @@ module Api
 
       def error_status_for(errors)
         messages = errors.values.flatten.map(&:to_s)
-        return :not_found if messages.any? { |message| message == "Invalid coupon code" || message.downcase.include?("not found") }
+        return :not_found if messages.any? { |message| message == "Invalid coupon code" ||
+          message.downcase.include?("not found") }
         return :bad_request if errors.key?(:booking_amount)
 
         :unprocessable_entity

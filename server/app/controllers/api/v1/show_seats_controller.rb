@@ -37,21 +37,6 @@ module Api
 
         render_operation_errors(result)
       end
-
-      private
-
-      def render_operation_errors(result)
-        errors = result[:errors].presence || { base: [ "Show seats request failed" ] }
-        render json: { errors: errors }, status: error_status_for(errors)
-      end
-
-      def error_status_for(errors)
-        messages = errors.values.flatten.map(&:to_s)
-        return :not_found if messages.any? { |message| message.downcase.include?("not found") }
-        return :forbidden if messages.any? { |message| message.start_with?("Not authorized") || message == "Forbidden" }
-
-        :unprocessable_entity
-      end
     end
   end
 end

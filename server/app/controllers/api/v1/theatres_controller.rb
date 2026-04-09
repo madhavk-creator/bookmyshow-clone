@@ -64,20 +64,7 @@ module Api
       )
 
       def index_params
-        params.permit(:city_id, :vendor_id, :page, :per_page).to_h.deep_symbolize_keys
-      end
-
-      def render_operation_errors(result)
-        errors = result[:errors].presence || { base: [ "Theatre request failed" ] }
-        render json: { errors: errors }, status: error_status_for(errors)
-      end
-
-      def error_status_for(errors)
-        messages = errors.values.flatten.map(&:to_s)
-        return :not_found if messages.any? { |message| message.downcase.include?("not found") }
-        return :forbidden if messages.any? { |message| message.start_with?("Not authorized") || message == "Forbidden" }
-
-        :unprocessable_entity
+        params.permit(:city_id, :vendor_id, :page, :per_page, theatre: {}).to_h.deep_symbolize_keys
       end
     end
   end

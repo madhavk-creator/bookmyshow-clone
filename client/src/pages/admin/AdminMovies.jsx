@@ -1,15 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clapperboard, Plus, Pencil, Trash2, X, Loader, Clock } from 'lucide-react'
+import DateFieldPanel from '../../components/DateFieldPanel'
 import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
-import { useCreateMovieMutation, useDeleteMovieMutation, useGetFormatsQuery, useGetLanguagesQuery, useGetMoviesQuery, useUpdateMovieMutation } from '../../store/apiSlice'
+import { useCreateMovieMutation, useDeleteMovieMutation, useGetFormatsQuery, useGetLanguagesQuery, useGetMovieQuery, useGetMoviesQuery, useUpdateMovieMutation } from '../../store/apiSlice'
+
+const EMPTY_MOVIE_FORM = {
+  title: '',
+  genre: '',
+  rating: 'UA',
+  description: '',
+  director: '',
+  running_time: '',
+  release_date: '',
+  format_ids: [],
+  language_entries: [],
+  cast_members: [],
+}
 
 export default function AdminMovies() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [formData, setFormData] = useState({ title: '', genre: '', rating: 'UA', description: '', director: '', running_time: '', release_date: '', format_ids: [], language_entries: [], cast_members: [] })
+  const [formData, setFormData] = useState(EMPTY_MOVIE_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
@@ -17,30 +31,47 @@ export default function AdminMovies() {
   const [updateMovie] = useUpdateMovieMutation()
   const [deleteMovie] = useDeleteMovieMutation()
   const { data: movies = [], isLoading: moviesLoading, isFetching: moviesFetching } = useGetMoviesQuery()
+  const { data: editingMovie, isFetching: editingMovieFetching } = useGetMovieQuery(editing?.id, {
+    skip: !editing?.id,
+  })
   const { data: languages = [] } = useGetLanguagesQuery()
   const { data: formats = [] } = useGetFormatsQuery()
   const loading = moviesLoading || moviesFetching
+  const modalLoading = editingMovieFetching && !!editing
 
   const openCreate = () => {
     setEditing(null)
-    setFormData({ title: '', genre: '', rating: 'UA', description: '', director: '', running_time: '', release_date: '', format_ids: [], language_entries: [], cast_members: [] })
+    setFormData(EMPTY_MOVIE_FORM)
     setError(null)
     setShowModal(true)
   }
 
   const openEdit = (movie) => {
     setEditing(movie)
-    setFormData({
-      title: movie.title || '', genre: movie.genre || '', rating: movie.rating || 'UA',
-      description: movie.description || '', director: movie.director || '',
-      running_time: movie.running_time || '', release_date: movie.release_date || '',
-      format_ids: movie.formats?.map(f => f.id) || [],
-      language_entries: movie.languages?.map(l => ({ language_id: l.id, type: l.type || 'original' })) || [],
-      cast_members: movie.cast_members || [],
-    })
+    setFormData(EMPTY_MOVIE_FORM)
     setError(null)
     setShowModal(true)
   }
+
+  useEffect(() => {
+    if (!editing || !editingMovie) return
+
+    setFormData({
+      title: editingMovie.title || '',
+      genre: editingMovie.genre || '',
+      rating: editingMovie.rating || 'UA',
+      description: editingMovie.description || '',
+      director: editingMovie.director || '',
+      running_time: editingMovie.running_time || '',
+      release_date: editingMovie.release_date || '',
+      format_ids: editingMovie.formats?.map((format) => format.id) || [],
+      language_entries: editingMovie.languages?.map((language) => ({
+        language_id: language.id,
+        type: language.type || 'original',
+      })) || [],
+      cast_members: editingMovie.cast_members || [],
+    })
+  }, [editing, editingMovie])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -155,6 +186,12 @@ export default function AdminMovies() {
                 <button onClick={() => setShowModal(false)} className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
               {error && <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/50 text-red-500 text-sm text-center font-medium">{error}</div>}
+              {modalLoading ? (
+                <div className="py-16 flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400">
+                  <Loader className="w-8 h-8 animate-spin text-rose-500 mb-3" />
+                  <p className="font-medium">Loading movie details...</p>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1 col-span-2">
@@ -180,8 +217,15 @@ export default function AdminMovies() {
                     <input type="number" name="running_time" value={formData.running_time} onChange={handleChange} min="1" className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all" placeholder="166" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Release Date</label>
-                    <input type="date" name="release_date" value={formData.release_date} onChange={handleChange} className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all" />
+                    <DateFieldPanel
+                      icon={Clock}
+                      label="Release Date"
+                      type="date"
+                      name="release_date"
+                      value={formData.release_date}
+                      onChange={handleChange}
+                      hint="Past and future release dates are both allowed."
+                    />
                   </div>
                   <div className="space-y-1 col-span-2">
                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Description</label>
@@ -241,6 +285,7 @@ export default function AdminMovies() {
                   {submitting ? <Loader className="w-5 h-5 animate-spin" /> : (editing ? 'Update Movie' : 'Create Movie')}
                 </button>
               </form>
+              )}
             </motion.div>
           </motion.div>
         )}

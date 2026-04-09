@@ -3,3 +3,9 @@ expire_seat_locks:
   class: "ExpireSeatLocksWorker"
   queue: default
   description: "Release expired seat locks and expire pending bookings every minute"
+
+expire_finished_show_seat_states:
+  cron: "* * * * *"
+  class: "ExpireFinishedShowSeatStatesWorker"
+  queue: default
+  description: "Clear transient seat states for finished shows and mark them completed every minute"

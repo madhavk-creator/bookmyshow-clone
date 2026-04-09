@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { Building2, Monitor, Ticket, TrendingUp } from 'lucide-react'
+import { ArrowRight, Building2, Clapperboard, Monitor, Ticket, TrendingUp } from 'lucide-react'
 import { selectCurrentUser } from '../../store/authSlice'
 import { useGetTheatresQuery, useGetVendorIncomeQuery } from '../../store/apiSlice'
 
@@ -80,7 +81,7 @@ export default function VendorDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
         <div className="glass-card p-6 hover:translate-y-0">
           <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">Gross Ticket Sales</p>
           <p className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">
@@ -108,6 +109,28 @@ export default function VendorDashboard() {
           </p>
           <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">Average net income across your active theatre portfolio.</p>
         </div>
+
+        <Link
+          to="/vendor/show-performance"
+          className="glass-card p-6 hover:translate-y-0 border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-white to-orange-500/10 dark:from-amber-500/10 dark:via-neutral-950 dark:to-orange-500/10"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">Show Performance</p>
+              <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-2">See show-wise bookings and revenue</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                Review scheduled and completed shows with occupancy, booked seats, and income.
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-500 shrink-0">
+              <Clapperboard className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
+            Open performance page
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </Link>
       </div>
 
       {/* Recent Theatres */}

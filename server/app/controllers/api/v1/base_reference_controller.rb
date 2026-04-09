@@ -70,7 +70,7 @@ module Api
       def serialize(_)      = raise NotImplementedError
 
       def permitted_params = params.require(model_class.name.downcase.to_sym).permit(:name, :code)
-        
+
       def index_params = params.permit(:q).to_h.deep_symbolize_keys
 
       def render_operation_errors(result)
@@ -79,9 +79,9 @@ module Api
       end
 
       def error_status_for(errors)
-        flat_errors = errors.to_h.values.flatten.map(&:to_s)
-        return :not_found if flat_errors.any? { |message| message.downcase.include?("not found") }
-        return :forbidden if flat_errors.any? { |message| message.downcase.start_with?("not authorized") || message.downcase == "forbidden" }
+        messages = errors.to_h.values.flatten.map(&:to_s)
+        return :not_found if messages.any? { |message| message.downcase.include?("not found") }
+        return :forbidden if messages.any? { |message| message.downcase.start_with?("not authorized") || message.downcase == "forbidden" }
 
         :unprocessable_entity
       end

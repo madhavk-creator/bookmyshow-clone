@@ -35,6 +35,7 @@ Rails.application.routes.draw do
       resources :vendors, only: %i[index] do
         member do
           get :income
+          get :shows_summary
         end
       end
 

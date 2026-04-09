@@ -136,11 +136,11 @@ module Bookings
     end
 
     def calculate_total(ctx, seat_ids:, section_by_seat:, price_by_section:, coupon:, current_user:, **)
-      subtotal = seat_ids.sum do |seat_id|
+      subtotal = seat_ids.sum(0.0) do |seat_id|
         seat    = section_by_seat[seat_id]
         section = seat&.seat_section
         price   = price_by_section[section&.id]&.base_price || 0
-        price.to_d
+        price.to_f
       end
 
       if coupon && !validate_coupon_for_user(ctx:, coupon:, current_user:, subtotal:)
@@ -209,7 +209,7 @@ module Bookings
       seat_ids.each do |seat_id|
         seat    = section_by_seat[seat_id]
         section = seat&.seat_section
-        price   = price_by_section[section&.id]&.base_price.to_d
+        price   = price_by_section[section&.id]&.base_price.to_f
 
         ::Ticket.create!(
           booking:      booking,

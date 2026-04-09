@@ -4,13 +4,14 @@ import { useSelector, useDispatch } from 'react-redux'
 import { clearCredentials, selectCurrentUser } from '../store/authSlice'
 import {
   Building2, Monitor, LayoutDashboard, Settings, LogOut,
-  ChevronLeft, ChevronRight, Film
+  ChevronLeft, ChevronRight, Film, Clapperboard
 } from 'lucide-react'
 
 const sidebarLinks = [
   { to: '/vendor',          icon: LayoutDashboard, label: 'Dashboard',  end: true },
   { to: '/vendor/theatres',  icon: Building2,       label: 'Theatres' },
   { to: '/vendor/screens',   icon: Monitor,         label: 'Screens' },
+  { to: '/vendor/show-performance', icon: Clapperboard, label: 'Show Performance' },
   { to: '/vendor/settings',  icon: Settings,        label: 'Settings' },
 ]
 

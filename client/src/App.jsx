@@ -18,6 +18,7 @@ import SeatLayoutManager from './pages/vendor/SeatLayoutManager'
 import SeatLayoutEditor from './pages/vendor/SeatLayoutEditor'
 import VendorShows from './pages/vendor/VendorShows'
 import VendorShowEditor from './pages/vendor/VendorShowEditor'
+import VendorShowPerformance from './pages/vendor/VendorShowPerformance'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMovies from './pages/admin/AdminMovies'
@@ -79,6 +80,7 @@ function App() {
               <Route path="screens" element={<VendorScreens />} />
               <Route path="layouts/:theatreId/:screenId" element={<SeatLayoutManager />} />
               <Route path="layouts/:theatreId/:screenId/:layoutId" element={<SeatLayoutEditor />} />
+              <Route path="show-performance" element={<VendorShowPerformance />} />
               <Route path="shows/:theatreId/:screenId" element={<VendorShows />} />
               <Route path="shows/:theatreId/:screenId/new" element={<VendorShowEditor />} />
               <Route path="shows/:theatreId/:screenId/:showId/edit" element={<VendorShowEditor />} />

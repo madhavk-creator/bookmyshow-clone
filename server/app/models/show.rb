@@ -1,4 +1,6 @@
 class Show < ApplicationRecord
+  scope :finished, -> { where("end_time < ?", Time.current) }
+
   belongs_to :screen
   belongs_to :seat_layout
   belongs_to :movie
@@ -20,6 +22,10 @@ class Show < ApplicationRecord
   validate :language_belongs_to_movie
   validate :format_belongs_to_movie
   validate :screen_supports_movie_format
+
+  def self.sync_finished_statuses!
+    finished.where(status: "scheduled").update_all(status: "completed")
+  end
 
   def release_expired_locks!
     show_seat_states.expired_locks.delete_all

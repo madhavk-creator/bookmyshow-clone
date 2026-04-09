@@ -18,7 +18,7 @@ module Api
       end
 
       def permitted_params = params.require(:city).permit(:name, :state)
-      def index_params = params.permit(:state).to_h.deep_symbolize_keys
+      def index_params = params.permit(:state, city: {}).to_h.deep_symbolize_keys
     end
   end
 end

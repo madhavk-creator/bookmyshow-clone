@@ -23,9 +23,9 @@ module Coupons
         return false
       end
 
-      ctx[:subtotal] = BigDecimal(booking_amount.to_s)
+      ctx[:subtotal] = Float(booking_amount)
       true
-    rescue ArgumentError
+    rescue ArgumentError, TypeError
       ctx[:errors] = { booking_amount: [ "must be a valid number" ] }
       false
     end

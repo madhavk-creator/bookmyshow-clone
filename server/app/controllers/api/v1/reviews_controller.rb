@@ -48,10 +48,10 @@ module Api
       # DELETE /api/v1/movies/:movie_id/reviews/:id
       def destroy
         result = run Reviews::Destroy, params: { id: params[:id], movie_id: params[:movie_id] } do
-          render json: { message: "Review deleted successfully" }
+          return render json: { message: "Review deleted successfully" }
         end
 
-        render_operation_errors(result) unless result.success?
+        render_operation_errors(result)
       end
 
       private
@@ -61,20 +61,7 @@ module Api
       end
 
       def index_params
-        params.permit(:movie_id, :page, :per_page).to_h.deep_symbolize_keys
-      end
-
-      def render_operation_errors(result)
-        errors = result[:errors].presence || { base: [ "Request failed" ] }
-        render json: { errors: errors }, status: error_status_for(errors)
-      end
-
-      def error_status_for(errors)
-        messages = errors.values.flatten.map(&:to_s)
-        return :not_found if messages.any? { |message| message.downcase.include?("not found") }
-        return :forbidden if messages.any? { |message| message.start_with?("Not authorized") || message == "Forbidden" }
-
-        :unprocessable_entity
+        params.permit(:movie_id, :page, :per_page, review: {}).to_h.deep_symbolize_keys
       end
     end
   end

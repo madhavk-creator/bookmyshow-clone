@@ -59,7 +59,7 @@ module Api
       private
 
       def index_params
-        params.permit(:screen_id, :status, :movie_id, :date, :language, :format, :city_id, :page, :per_page).to_h.deep_symbolize_keys
+        params.permit(:theatre_id, :screen_id, :status, :movie_id, :date, :language, :format, :city_id, :page, :per_page, show: {}).to_h.deep_symbolize_keys
       end
 
       def show_lookup_params
@@ -73,23 +73,6 @@ module Api
           section_prices: [ :seat_section_id, :base_price ]
         )
       end
-
-      def render_errors(errors, status: :unprocessable_entity)
-        render json: { errors: errors }, status: status
-      end
-
-      def render_operation_errors(result)
-        render_errors(result[:errors], status: error_status_for(result[:errors]))
-      end
-
-      def error_status_for(errors)
-        flat_errors = errors.to_h.values.flatten
-        return :not_found if flat_errors.include?("Not found") || flat_errors.include?("Show not found")
-        return :forbidden if flat_errors.any? { |message| message.to_s.start_with?("Not authorized") }
-
-        :unprocessable_entity
-      end
-
     end
   end
 end
