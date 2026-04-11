@@ -36,7 +36,7 @@ module SeatLayouts
     end
 
     def assign_attributes(ctx, params:, model:, **)
-      allowed = %i[name total_rows total_columns screen_label legend_json]
+      allowed = %i[name screen_label legend_json]
       model.assign_attributes(params.slice(*allowed).compact)
       true
     end

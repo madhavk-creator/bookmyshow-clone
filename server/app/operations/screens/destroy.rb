@@ -3,6 +3,7 @@ module Screens
     step :find_theatre
     step :find_screen
     step :authorize_screen
+    step :ensure_no_active_shows
     step :destroy
     fail :collect_errors
 
@@ -28,6 +29,13 @@ module Screens
       return true if Pundit.policy!(current_user, model).destroy?
 
       ctx[:errors] = { base: [ "Not authorized to delete this screen" ] }
+      false
+    end
+
+    def ensure_no_active_shows(ctx, model:, **)
+      return true unless model.shows.where(status: "scheduled").where("end_time > ?", Time.current).exists?
+
+      ctx[:errors] = { base: [ "Cannot delete a screen while it has running or upcoming shows" ] }
       false
     end
 

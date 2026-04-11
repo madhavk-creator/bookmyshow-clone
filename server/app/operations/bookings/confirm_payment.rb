@@ -1,5 +1,7 @@
 module Bookings
   class ConfirmPayment < ::Trailblazer::Operation
+    include CouponSupport
+
     step :find_booking
     step :authorize_booking
     step :validate_booking_state
@@ -71,6 +73,7 @@ module Bookings
         end
 
         model.update!(status: "confirmed")
+        sync_coupon_usage_after_confirmation!(booking: model, current_user: model.user)
 
         ctx[:model]   = model
         ctx[:payment] = payment

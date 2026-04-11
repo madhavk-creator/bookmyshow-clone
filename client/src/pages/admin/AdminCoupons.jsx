@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Ticket, Plus, Trash2, Calendar, Loader, Tag, AlertCircle } from 'lucide-react'
+import { Ticket, Plus, Archive, Calendar, Loader, Tag, AlertCircle } from 'lucide-react'
 import DateFieldPanel from '../../components/DateFieldPanel'
-import { api } from '../../utils/api'
+import { api, extractApiError } from '../../utils/api'
 import { isBeforeLocalDateTime, toLocalDateTimeValue } from '../../utils/dateInput'
 import { showSuccessToast, showApiErrorToast } from '../../utils/toast'
 
 export default function AdminCoupons() {
+  const couponCodePattern = /^[A-Z0-9]+$/
   const [coupons, setCoupons] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -40,9 +41,39 @@ export default function AdminCoupons() {
     fetchCoupons()
   }, [])
 
+  const getCouponStatus = (coupon) => {
+    const now = Date.now()
+    const startsAt = new Date(coupon.valid_from).getTime()
+    const endsAt = new Date(coupon.valid_until).getTime()
+
+    if (startsAt > now) {
+      return {
+        key: 'upcoming',
+        label: 'Scheduled',
+        accentClass: 'bg-amber-500/20',
+        badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20',
+      }
+    }
+
+    if (endsAt < now) {
+      return {
+        key: 'expired',
+        label: 'Expired',
+        accentClass: 'bg-red-500/20',
+        badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-300 border border-red-500/20',
+      }
+    }
+
+    return {
+      key: 'active',
+      label: 'Active',
+      accentClass: 'bg-emerald-500/20',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20',
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setSubmitting(true)
     setFormError(null)
 
     const minimumDateTime = toLocalDateTimeValue()
@@ -58,6 +89,26 @@ export default function AdminCoupons() {
       setSubmitting(false)
       return
     }
+
+    if (!couponCodePattern.test(formData.code.trim())) {
+      setFormError('Coupon code can contain only uppercase letters and numbers.')
+      return
+    }
+
+    const minimumBookingAmount = formData.minimum_booking_amount === '' ? null : Number(formData.minimum_booking_amount)
+    const discountAmount = formData.discount_amount === '' ? null : Number(formData.discount_amount)
+
+    if (
+      formData.coupon_type === 'amount' &&
+      minimumBookingAmount != null &&
+      discountAmount != null &&
+      discountAmount > minimumBookingAmount
+    ) {
+      setFormError('For fixed amount coupons, the discount amount cannot be greater than the minimum booking amount.')
+      return
+    }
+
+    setSubmitting(true)
 
     const payload = { ...formData }
     if (payload.coupon_type === 'percentage') delete payload.discount_amount
@@ -77,7 +128,7 @@ export default function AdminCoupons() {
 
     try {
       const { data } = await api.post('/api/v1/admin/coupons', { coupon: payload })
-      setCoupons([data, ...coupons])
+      setCoupons((prev) => [data, ...prev])
       showSuccessToast('Coupon created successfully')
       setIsModalOpen(false)
       setFormError(null)
@@ -86,20 +137,21 @@ export default function AdminCoupons() {
         valid_from: '', valid_until: '', minimum_booking_amount: '', max_uses_per_user: '', max_total_uses: ''
       })
     } catch (err) {
+      setFormError(extractApiError(err, 'We could not create this coupon right now.'))
       showApiErrorToast(err, 'Failed to create coupon')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this coupon?')) return
+  const handleArchive = async (id) => {
+    if (!window.confirm('Are you sure you want to archive this coupon?')) return
     try {
-      await api.delete(`/api/v1/admin/coupons/${id}`)
-      setCoupons(coupons.filter(c => c.id !== id))
-      showSuccessToast('Coupon deleted')
+      const { data } = await api.delete(`/api/v1/admin/coupons/${id}`)
+      setCoupons((prev) => prev.map((coupon) => coupon.id === id ? data : coupon))
+      showSuccessToast('Coupon archived')
     } catch (err) {
-      showApiErrorToast(err, 'Failed to delete coupon')
+      showApiErrorToast(err, 'Failed to archive coupon')
     }
   }
 
@@ -138,19 +190,27 @@ export default function AdminCoupons() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {coupons.map(coupon => (
+          {coupons.map(coupon => {
+            const status = getCouponStatus(coupon)
+
+            return (
             <div key={coupon.id} className="glass-card p-6 rounded-2xl relative overflow-hidden group">
               {/* Status Indicator */}
-              <div className={`absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 rotate-45 ${coupon.is_active ? 'bg-emerald-500/20' : 'bg-red-500/20'}`} />
+              <div className={`absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 rotate-45 ${status.accentClass}`} />
               
               <div className="flex justify-between items-start mb-4">
-                <div className="inline-flex px-3 py-1 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-                  <span className="font-mono font-black text-xl text-primary-600 dark:text-primary-400 tracking-[0.18em] uppercase [font-feature-settings:'zero'_1]">
-                    {coupon.code}
-                  </span>
+                <div className="space-y-2">
+                  <div className="inline-flex px-3 py-1 bg-primary-500/10 border border-primary-500/20 rounded-lg">
+                    <span className="font-mono font-black text-xl text-primary-600 dark:text-primary-400 tracking-[0.18em] uppercase [font-feature-settings:'zero'_1]">
+                      {coupon.code}
+                    </span>
+                  </div>
+                  <div className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.18em] ${status.badgeClass}`}>
+                    {status.label}
+                  </div>
                 </div>
-                <button onClick={() => handleDelete(coupon.id)} className="text-neutral-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-500/10">
-                  <Trash2 className="w-4 h-4" />
+                <button onClick={() => handleArchive(coupon.id)} className="text-neutral-400 hover:text-amber-500 transition-colors p-2 rounded-lg hover:bg-amber-500/10">
+                  <Archive className="w-4 h-4" />
                 </button>
               </div>
 
@@ -166,6 +226,11 @@ export default function AdminCoupons() {
                   <Calendar className="w-4 h-4" />
                   <span>{new Date(coupon.valid_from).toLocaleDateString()} &rarr; {new Date(coupon.valid_until).toLocaleDateString()}</span>
                 </div>
+                {status.key === 'upcoming' && (
+                  <div className="text-amber-600 dark:text-amber-300 font-medium">
+                    Starts at {new Date(coupon.valid_from).toLocaleString()}
+                  </div>
+                )}
                 {coupon.minimum_booking_amount && (
                   <div className="text-neutral-500">Min spend: <span className="font-bold text-neutral-700 dark:text-neutral-300">₹{parseFloat(coupon.minimum_booking_amount)}</span></div>
                 )}
@@ -179,7 +244,7 @@ export default function AdminCoupons() {
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 
@@ -204,7 +269,7 @@ export default function AdminCoupons() {
                   <input type="text" required value={formData.code} onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
                     placeholder="e.g. SUMMER20" className="w-full font-mono font-bold tracking-[0.18em] uppercase [font-feature-settings:'zero'_1] p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" />
                   <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                    Double-check similar characters like <span className="font-mono [font-feature-settings:'zero'_1]">O</span> and <span className="font-mono [font-feature-settings:'zero'_1]">0</span>.
+                    Use only letters and numbers. Double-check similar characters like <span className="font-mono [font-feature-settings:'zero'_1]">O</span> and <span className="font-mono [font-feature-settings:'zero'_1]">0</span>.
                   </p>
                 </div>
                 

@@ -46,6 +46,15 @@ module Api
       # POST /api/v1/bookings/:id/cancel
       def cancel
         result = run Bookings::Cancel, params: { id: params[:id] } do |operation_result|
+          if operation_result[:discarded]
+            return render json: {
+              cancelled: true,
+              discarded: true,
+              booking_id: operation_result[:discarded_booking_id],
+              show_id: operation_result[:show_id]
+            }, status: :ok
+          end
+
           return render json: Bookings::Serializer.call(operation_result[:model], detailed: true), status: :ok
         end
 

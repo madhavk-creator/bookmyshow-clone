@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Save, Loader, AlertTriangle, Calendar, Layers, Popcorn, Languages, Video, FileText } from 'lucide-react'
 import DateFieldPanel from '../../components/DateFieldPanel'
-import { useCreateShowMutation, useGetMoviesQuery, useGetSeatLayoutQuery, useGetSeatLayoutsQuery, useGetShowQuery, useUpdateShowMutation } from '../../store/apiSlice'
+import { useCreateShowMutation, useGetMoviesQuery, useGetScreenQuery, useGetSeatLayoutQuery, useGetSeatLayoutsQuery, useGetShowQuery, useUpdateShowMutation } from '../../store/apiSlice'
 import { extractApiError } from '../../utils/api'
 import { isBeforeLocalDateTime, toLocalDateTimeValue } from '../../utils/dateInput'
-import { showApiErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
+import { showErrorToast, showSuccessToast, showWarningToast } from '../../utils/toast'
 
 export default function VendorShowEditor() {
   const { theatreId, screenId, showId } = useParams()
   const isEditing = Boolean(showId)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const preselectedMovieId = searchParams.get('movieId') || ''
   const [createShow] = useCreateShowMutation()
   const [updateShow] = useUpdateShowMutation()
 
@@ -25,9 +27,14 @@ export default function VendorShowEditor() {
     movie_format_id: '',
     seat_layout_id: '',
     start_time: '',
+    recurrence_end_date: '',
     section_prices: [] // { seat_section_id, base_price }
   })
   const { data: movies = [], isLoading: moviesLoading } = useGetMoviesQuery()
+  const { data: screen } = useGetScreenQuery(
+    { theatreId, screenId },
+    { skip: !theatreId || !screenId }
+  )
   const { data: allLayouts = [], isLoading: layoutsLoading } = useGetSeatLayoutsQuery(
     { theatreId, screenId },
     { skip: !theatreId || !screenId }
@@ -45,6 +52,8 @@ export default function VendorShowEditor() {
   const selectedLayoutSections = selectedLayoutDetail?.sections || []
   const loading = moviesLoading || layoutsLoading || (isEditing && showLoading) || layoutDetailLoading
   const minimumStartTime = toLocalDateTimeValue()
+  const supportedFormatIds = new Set((screen?.formats || []).map((format) => format.id))
+  const compatibleFormats = formats.filter((format) => supportedFormatIds.has(format.id))
 
   useEffect(() => {
     if (!isEditing || !showData || movies.length === 0) return
@@ -61,6 +70,7 @@ export default function VendorShowEditor() {
       movie_format_id: showData.format?.id || '',
       seat_layout_id: showData.seat_layout_id || '',
       start_time: new Date(new Date(showData.start_time).getTime() - new Date(showData.start_time).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+      recurrence_end_date: '',
       section_prices: showData.section_prices || []
     })
   }, [isEditing, movies, showData])
@@ -78,6 +88,25 @@ export default function VendorShowEditor() {
     }))
   }, [isEditing, selectedLayoutSections])
 
+  useEffect(() => {
+    if (isEditing || !preselectedMovieId || movies.length === 0) return
+    if (formData.movie_id) return
+
+    const selectedMovie = movies.find((movie) => movie.id === preselectedMovieId)
+    if (!selectedMovie) return
+
+    const compatibleFormats = (selectedMovie.formats || []).filter((format) => supportedFormatIds.has(format.id))
+
+    setLanguages(selectedMovie.languages || [])
+    setFormats(selectedMovie.formats || [])
+    setFormData((prev) => ({
+      ...prev,
+      movie_id: preselectedMovieId,
+      movie_language_id: selectedMovie.languages?.length === 1 ? selectedMovie.languages[0].movie_language_id || '' : '',
+      movie_format_id: compatibleFormats.length === 1 ? compatibleFormats[0].movie_format_id || '' : '',
+    }))
+  }, [formData.movie_id, isEditing, movies, preselectedMovieId, screen?.formats])
+
   const handleLayoutChange = (e) => {
     const layoutId = e.target.value
     setFormData(prev => ({
@@ -94,6 +123,7 @@ export default function VendorShowEditor() {
     if (name === 'movie_id') {
       const selectedMovie = movies.find(m => m.id === value)
       if (selectedMovie) {
+        const movieCompatibleFormats = (selectedMovie.formats || []).filter((format) => supportedFormatIds.has(format.id))
         setLanguages(selectedMovie.languages || [])
         setFormats(selectedMovie.formats || [])
         
@@ -101,7 +131,7 @@ export default function VendorShowEditor() {
           ...prev,
           movie_id: value,
           movie_language_id: selectedMovie.languages?.length === 1 ? selectedMovie.languages[0].movie_language_id || '' : '',
-          movie_format_id: selectedMovie.formats?.length === 1 ? selectedMovie.formats[0].movie_format_id || '' : ''
+          movie_format_id: movieCompatibleFormats.length === 1 ? movieCompatibleFormats[0].movie_format_id || '' : ''
         }))
       } else {
         setLanguages([])
@@ -128,8 +158,8 @@ export default function VendorShowEditor() {
   const getShowSaveErrorMessage = (err) => {
     const message = extractApiError(err, 'Failed to save show')
 
-    if (message.includes('This screen already has a show scheduled during this time')) {
-      return 'You have another show running in the same screen, please select a different time.'
+    if (message.includes('This screen already has a show scheduled')) {
+      return 'You have another show running in the same screen for one or more selected dates. Please pick a different time or shorten the repeat range.'
     }
 
     return message
@@ -151,6 +181,17 @@ export default function VendorShowEditor() {
     if (isBeforeLocalDateTime(formData.start_time, minimumStartTime)) {
       setError('Show time cannot be in the past.')
       showWarningToast('Show time cannot be in the past.')
+      setSubmitting(false)
+      return
+    }
+
+    if (
+      !isEditing &&
+      formData.recurrence_end_date &&
+      formData.recurrence_end_date < formData.start_time.slice(0, 10)
+    ) {
+      setError('Repeat end date must be on or after the show date.')
+      showWarningToast('Repeat end date must be on or after the show date.')
       setSubmitting(false)
       return
     }
@@ -181,6 +222,9 @@ export default function VendorShowEditor() {
         payload.show.movie_language_id = formData.movie_language_id
         payload.show.movie_format_id = formData.movie_format_id
         payload.show.seat_layout_id = formData.seat_layout_id
+        if (formData.recurrence_end_date) {
+          payload.show.recurrence_end_date = formData.recurrence_end_date
+        }
       }
       
       if (isEditing) {
@@ -188,12 +232,18 @@ export default function VendorShowEditor() {
       } else {
         await createShow({ theatreId, screenId, show: payload.show }).unwrap()
       }
-      showSuccessToast(`Show ${isEditing ? 'updated' : 'scheduled'} successfully.`)
+      if (isEditing) {
+        showSuccessToast('Show updated successfully.')
+      } else if (formData.recurrence_end_date) {
+        showSuccessToast('Shows scheduled successfully for the selected date range.')
+      } else {
+        showSuccessToast('Show scheduled successfully.')
+      }
       navigate(`/vendor/shows/${theatreId}/${screenId}`)
     } catch (err) {
       const errorMessage = getShowSaveErrorMessage(err)
       setError(errorMessage)
-      showApiErrorToast({ error: errorMessage }, errorMessage)
+      showErrorToast(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -268,6 +318,22 @@ export default function VendorShowEditor() {
               />
             </div>
 
+            {!isEditing && (
+              <div className="space-y-2">
+                <DateFieldPanel
+                  icon={Calendar}
+                  label="Repeat Daily Until"
+                  type="date"
+                  name="recurrence_end_date"
+                  value={formData.recurrence_end_date}
+                  onChange={handleChange}
+                  min={formData.start_time ? formData.start_time.slice(0, 10) : minimumStartTime.slice(0, 10)}
+                  hint="Optional. Leave empty for a single show, or choose an end date to repeat this show daily at the same time."
+                  error={error === 'Repeat end date must be on or after the show date.' ? error : undefined}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="flex items-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 <Languages className="w-4 h-4 mr-2 text-purple-500" /> Language *
@@ -296,7 +362,7 @@ export default function VendorShowEditor() {
                 className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500/50 disabled:opacity-50"
               >
                 <option value="">Select format</option>
-                {formats.map(f => <option key={f.movie_format_id || f.id} value={f.movie_format_id || ''}>{f.name} ({f.code})</option>)}
+                {compatibleFormats.map(f => <option key={f.movie_format_id || f.id} value={f.movie_format_id || ''}>{f.name} ({f.code})</option>)}
               </select>
             </div>
 

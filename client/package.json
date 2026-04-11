@@ -3,13 +3,21 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "overrides": {
+    "vite": "^7.1.11"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docs:dev": "astro dev --config astro.config.mjs",
+    "docs:build": "astro build --config astro.config.mjs",
+    "docs:preview": "astro preview --config astro.config.mjs"
   },
   "dependencies": {
+    "astro": "^6.1.5",
+    "@astrojs/starlight": "^0.38.3",
     "@reduxjs/toolkit": "^2.11.2",
     "@tailwindcss/vite": "^4.2.2",
     "axios": "^1.13.1",
@@ -21,7 +29,9 @@
     "react-dom": "^19.2.4",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.13.2",
-    "react-toastify": "^11.0.5",
+    "react-tooltip": "^5.30.0",
+    "react-zoom-pan-pinch": "^4.0.3",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2"
   },

@@ -48,6 +48,28 @@ RSpec.describe SeatLayouts::Update do
     expect(result[:model].reload.name).to eq("Updated Layout")
   end
 
+  it "ignores attempts to change the layout dimensions directly" do
+    vendor = create(:user, :vendor)
+    theatre = create(:theatre, vendor: vendor)
+    screen = create(:screen, theatre: theatre, total_rows: 10, total_columns: 12)
+    layout = create(:seat_layout, screen: screen, total_rows: 10, total_columns: 12)
+
+    result = SeatLayouts::Update.call(
+      current_user: vendor,
+      params: {
+        theatre_id: theatre.id,
+        screen_id: screen.id,
+        id: layout.id,
+        total_rows: 20,
+        total_columns: 25
+      }
+    )
+
+    expect(result).to be_success
+    expect(result[:model].reload.total_rows).to eq(10)
+    expect(result[:model].total_columns).to eq(12)
+  end
+
   it "fails authorization for a different vendor" do
     owner = create(:user, :vendor)
     other_vendor = create(:user, :vendor)
@@ -67,6 +89,65 @@ RSpec.describe SeatLayouts::Update do
 
     expect(result).not_to be_success
     expect(result[:errors]).to eq(base: [ "Not authorized to update this layout" ])
+  end
+end
+
+RSpec.describe SeatLayouts::Create do
+  it "derives layout dimensions from the screen" do
+    vendor = create(:user, :vendor)
+    theatre = create(:theatre, vendor: vendor)
+    screen = create(:screen, theatre: theatre, total_rows: 10, total_columns: 12)
+
+    result = described_class.call(
+      current_user: vendor,
+      params: {
+        theatre_id: theatre.id,
+        screen_id: screen.id,
+        name: "Main Layout",
+        total_rows: 20,
+        total_columns: 25
+      }
+    )
+
+    expect(result).to be_success
+    expect(result[:model].total_rows).to eq(10)
+    expect(result[:model].total_columns).to eq(12)
+  end
+end
+
+RSpec.describe SeatLayouts::SyncSeats do
+  it "rejects seats outside the layout grid" do
+    vendor = create(:user, :vendor)
+    theatre = create(:theatre, vendor: vendor)
+    screen = create(:screen, theatre: theatre, total_rows: 2, total_columns: 2)
+    layout = create(:seat_layout, screen: screen)
+    section = create(:seat_section, seat_layout: layout)
+
+    result = described_class.call(
+      current_user: vendor,
+      params: {
+        theatre_id: theatre.id,
+        screen_id: screen.id,
+        id: layout.id,
+        seats: [
+          {
+            row_label: "A",
+            seat_number: 1,
+            grid_row: 2,
+            grid_column: 0,
+            seat_section_id: section.id,
+            seat_kind: "standard",
+            x_span: 1,
+            y_span: 1,
+            is_accessible: false,
+            is_active: true
+          }
+        ]
+      }
+    )
+
+    expect(result).not_to be_success
+    expect(result[:errors]).to include(grid_row: [ "Grid row must be within the layout row count" ])
   end
 end
 

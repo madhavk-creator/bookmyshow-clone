@@ -2,6 +2,7 @@ module Bookings
   class Show < ::Trailblazer::Operation
     step :find_booking
     step :authorize_booking
+    step :refresh_pending_expiration
     fail :collect_errors
 
     def find_booking(ctx, params:, current_user:, **)
@@ -18,6 +19,16 @@ module Bookings
       return true if Pundit.policy!(current_user, model).show?
 
       ctx[:errors] = { base: [ "Not authorized to view this booking" ] }
+      false
+    end
+
+    def refresh_pending_expiration(ctx, model:, **)
+      ctx[:model] = model.refresh_expiration!
+      if ctx[:model].present?
+        return true
+      end
+
+      ctx[:errors] = { booking: [ "Not found" ] }
       false
     end
 

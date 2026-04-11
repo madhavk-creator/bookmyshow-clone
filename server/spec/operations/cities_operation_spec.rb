@@ -36,5 +36,18 @@ RSpec.describe "Cities operations auth and lookup" do
       expect(result).not_to be_success
       expect(result[:errors][:base]).to include("Not authorized to delete this city")
     end
+
+    it "blocks deleting a city that still has theatres" do
+      city = create(:city)
+      create(:theatre, city: city)
+
+      result = Cities::Destroy.call(
+        current_user: create(:user, :admin),
+        params: { id: city.id }
+      )
+
+      expect(result).not_to be_success
+      expect(result[:errors][:base]).to include("Cannot delete a city that still has theatres")
+    end
   end
 end

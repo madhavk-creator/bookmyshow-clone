@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CalendarDays, Plus, Calendar, Clock, ChevronLeft, Loader, Video, AlertTriangle } from 'lucide-react'
-import { useCancelShowMutation, useGetScreenQuery, useGetScreenShowsQuery } from '../../store/apiSlice'
+import { CalendarDays, Plus, Calendar, Clock, ChevronLeft, Loader, Video, AlertTriangle, Sparkles } from 'lucide-react'
+import { useCancelShowMutation, useGetMoviesQuery, useGetScreenQuery, useGetScreenShowsQuery } from '../../store/apiSlice'
 import { extractApiError } from '../../utils/api'
 import { showApiErrorToast, showSuccessToast } from '../../utils/toast'
 import { useConfirm } from '../../components/ConfirmProvider'
@@ -14,6 +14,7 @@ export default function VendorShows() {
   
   const confirm = useConfirm()
   const { data: screen, error: screenError } = useGetScreenQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
+  const { data: movies = [], isLoading: moviesLoading } = useGetMoviesQuery()
   const {
     data: shows = [],
     isLoading: showsLoading,
@@ -22,6 +23,14 @@ export default function VendorShows() {
   } = useGetScreenShowsQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
   const loading = showsLoading || showsFetching
   const error = screenError || showsError ? extractApiError(screenError || showsError, 'Failed to load shows') : null
+  const supportedFormatIds = useMemo(
+    () => new Set((screen?.formats || []).map((format) => format.id)),
+    [screen?.formats]
+  )
+  const compatibleMovies = useMemo(
+    () => movies.filter((movie) => movie.formats?.some((format) => supportedFormatIds.has(format.id))),
+    [movies, supportedFormatIds]
+  )
   
   const handleCancelShow = async (showId) => {
     const confirmed = await confirm({
@@ -51,6 +60,9 @@ export default function VendorShows() {
     const date = new Date(timeString)
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
   }
+
+  const getCompatibleFormats = (movie) =>
+    (movie.formats || []).filter((format) => supportedFormatIds.has(format.id))
   
   if (loading) {
     return (
@@ -109,16 +121,91 @@ export default function VendorShows() {
 
       {/* Shows List */}
       {shows.length === 0 ? (
-        <div className="glass-card p-16 text-center hover:translate-y-0">
-          <CalendarDays className="w-16 h-16 mx-auto text-neutral-300 dark:text-neutral-600 mb-4" />
-          <h3 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">No shows scheduled</h3>
-          <p className="text-neutral-500 dark:text-neutral-400 mb-6">Create your first show for this screen to start selling tickets.</p>
-          <button
-            onClick={() => navigate(`/vendor/shows/${theatreId}/${screenId}/new`)}
-            className="px-6 py-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium rounded-xl hover:bg-purple-500/20 transition-colors inline-flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" /> Schedule a Show
-          </button>
+        <div className="space-y-6">
+          <div className="glass-card p-16 text-center hover:translate-y-0">
+            <CalendarDays className="w-16 h-16 mx-auto text-neutral-300 dark:text-neutral-600 mb-4" />
+            <h3 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">No shows scheduled</h3>
+            <p className="text-neutral-500 dark:text-neutral-400 mb-6">Create your first show for this screen to start selling tickets.</p>
+            <button
+              onClick={() => navigate(`/vendor/shows/${theatreId}/${screenId}/new`)}
+              className="px-6 py-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium rounded-xl hover:bg-purple-500/20 transition-colors inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" /> Schedule a Show
+            </button>
+          </div>
+
+          <div className="glass-card p-6 lg:p-8 hover:translate-y-0">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  Available Movies For This Screen
+                </h2>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                  Only movies with at least one format supported by {screen?.name || 'this screen'} are shown here.
+                </p>
+              </div>
+            </div>
+
+            {moviesLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader className="w-8 h-8 text-purple-500 animate-spin" />
+              </div>
+            ) : compatibleMovies.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-neutral-300 dark:border-neutral-700 p-8 text-center">
+                <p className="text-neutral-600 dark:text-neutral-300 font-medium">
+                  No compatible movies are available for this screen right now.
+                </p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+                  Add a movie with one of this screen&apos;s supported formats, or update the screen capabilities.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {compatibleMovies.map((movie) => {
+                  const compatibleFormats = getCompatibleFormats(movie)
+
+                  return (
+                    <div
+                      key={movie.id}
+                      className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/30 p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
+                            {movie.title}
+                          </h3>
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                            {movie.genre || 'Movie'} {movie.running_time ? `· ${movie.running_time} mins` : ''}
+                          </p>
+                          {compatibleFormats.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {compatibleFormats.map((format) => (
+                                <span
+                                  key={format.id}
+                                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                                >
+                                  {format.code}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => navigate(`/vendor/shows/${theatreId}/${screenId}/new?movieId=${movie.id}`)}
+                          className="shrink-0 px-4 py-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-colors text-sm font-medium inline-flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Schedule Show
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">

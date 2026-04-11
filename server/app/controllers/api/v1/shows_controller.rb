@@ -69,7 +69,7 @@ module Api
       def show_params
         params.require(:show).permit(
           :movie_id, :seat_layout_id, :movie_language_id,
-          :movie_format_id, :start_time,
+          :movie_format_id, :start_time, :recurrence_end_date,
           section_prices: [ :seat_section_id, :base_price ]
         )
       end

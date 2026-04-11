@@ -20,6 +20,7 @@ module Bookings
 
     step :authorize_create
     step :find_show
+    step :find_existing_pending_booking
     step :validate_requested_seats
     step :resolve_coupon
     step :build_lock_token
@@ -55,16 +56,57 @@ module Bookings
       true
     end
 
-    def validate_requested_seats(ctx, params:, show:, **)
-      seat_ids = Array(params[:seat_ids]).compact
+    def find_existing_pending_booking(ctx, current_user:, show:, **)
+      show.release_expired_locks!
 
-      if seat_ids.empty?
-        ctx[:errors] = { seat_ids: [ "must include at least one seat" ] }
+      active_locked_states = ::ShowSeatState
+        .active_locks
+        .where(show_id: show.id, locked_by_user_id: current_user.id)
+        .where.not(lock_token: nil)
+        .order(:created_at)
+        .to_a
+
+      ctx[:existing_booking] = nil
+      ctx[:existing_locked_states] = []
+      ctx[:existing_locked_seat_ids] = []
+      ctx[:lock_expires_at] = nil
+
+      return true if active_locked_states.empty?
+
+      booking = ::Booking
+        .includes(:tickets, :payments, :coupon)
+        .where(
+          user_id: current_user.id,
+          show_id: show.id,
+          status: "pending",
+          lock_token: active_locked_states.map(&:lock_token).uniq
+        )
+        .order(created_at: :desc)
+        .first
+
+      return true unless booking
+
+      booking_states = active_locked_states.select { |state| state.lock_token == booking.lock_token }
+
+      ctx[:existing_booking] = booking
+      ctx[:existing_locked_states] = booking_states
+      ctx[:existing_locked_seat_ids] = booking_states.map(&:seat_id)
+      ctx[:lock_expires_at] = booking_states.map(&:locked_until).compact.min
+      true
+    end
+
+    def validate_requested_seats(ctx, params:, show:, existing_locked_seat_ids: [], **)
+      requested_seat_ids = Array(params[:seat_ids]).compact.map(&:to_s)
+      locked_seat_ids = Array(existing_locked_seat_ids).map(&:to_s)
+      seat_ids = (locked_seat_ids + requested_seat_ids).uniq
+
+      if requested_seat_ids.uniq.size != requested_seat_ids.size
+        ctx[:errors] = { seat_ids: [ "contains duplicate seat IDs" ] }
         return false
       end
 
-      if seat_ids.uniq.size != seat_ids.size
-        ctx[:errors] = { seat_ids: [ "contains duplicate seat IDs" ] }
+      if seat_ids.empty?
+        ctx[:errors] = { seat_ids: [ "must include at least one seat" ] }
         return false
       end
 
@@ -96,15 +138,19 @@ module Bookings
         return false
       end
 
+      ctx[:requested_seat_ids] = requested_seat_ids
       ctx[:seat_ids] = seat_ids
+      ctx[:seat_ids_to_lock] = seat_ids - locked_seat_ids
       ctx[:section_by_seat] = section_by_seat
       ctx[:price_by_section] = price_by_section
       true
     end
 
-    def resolve_coupon(ctx, params:, current_user:, **)
-      ctx[:coupon] = nil
-      return true if params[:coupon_code].blank?
+    def resolve_coupon(ctx, params:, current_user:, existing_booking: nil, **)
+      if params[:coupon_code].blank?
+        ctx[:coupon] = existing_booking&.coupon
+        return true
+      end
 
       coupon = resolve_coupon_by_code(ctx, coupon_code: params[:coupon_code])
       return false if coupon.nil?
@@ -113,17 +159,24 @@ module Bookings
       true
     end
 
-    def build_lock_token(ctx, **)
-      ctx[:lock_token] = SecureRandom.uuid
+    def build_lock_token(ctx, existing_booking: nil, **)
+      ctx[:lock_token] = existing_booking&.lock_token || SecureRandom.uuid
     end
 
-    def lock_seats(ctx, current_user:, show:, lock_token:, seat_ids:, **)
+    def lock_seats(ctx, current_user:, show:, lock_token:, seat_ids_to_lock:, lock_expires_at: nil, existing_locked_states: [], **)
+      if seat_ids_to_lock.empty?
+        ctx[:locked_states] = existing_locked_states
+        ctx[:newly_locked_seat_ids] = []
+        return true
+      end
+
       result = ShowSeatStates::Lock.call(
         params: {
           show_id:    show.id,
-          seat_ids:,
+          seat_ids:   seat_ids_to_lock,
           user_id:    current_user.id,
-          lock_token: lock_token
+          lock_token: lock_token,
+          locked_until: lock_expires_at
         }
       )
 
@@ -132,7 +185,8 @@ module Bookings
         return false
       end
 
-      ctx[:locked_states] = result[:locked_states]
+      ctx[:locked_states] = existing_locked_states + result[:locked_states]
+      ctx[:newly_locked_seat_ids] = seat_ids_to_lock
     end
 
     def calculate_total(ctx, seat_ids:, section_by_seat:, price_by_section:, coupon:, current_user:, **)
@@ -152,7 +206,7 @@ module Bookings
       true
     end
 
-    def persist_booking_bundle(ctx, current_user:, show:, coupon:, subtotal:, total_amount:, lock_token:, seat_ids:, section_by_seat:, price_by_section:, **)
+    def persist_booking_bundle(ctx, current_user:, show:, coupon:, subtotal:, total_amount:, lock_token:, seat_ids:, section_by_seat:, price_by_section:, existing_booking: nil, **)
       booking_persisted = false
 
       ActiveRecord::Base.transaction do
@@ -168,7 +222,7 @@ module Bookings
 
         total_amount = coupon_total(subtotal, coupon)
 
-        booking = ::Booking.create!(
+        booking = existing_booking || ::Booking.create!(
           user:         current_user,
           show:         show,
           coupon:       coupon,
@@ -177,7 +231,12 @@ module Bookings
           lock_token:   lock_token
         )
 
-        create_tickets!(
+        booking.update!(
+          coupon: coupon,
+          total_amount: total_amount
+        ) if existing_booking
+
+        sync_tickets!(
           booking:          booking,
           show:             show,
           seat_ids:         seat_ids,
@@ -185,14 +244,11 @@ module Bookings
           price_by_section: price_by_section
         )
 
-        payment = ::Payment.create!(
+        payment = upsert_pending_payment!(
           booking: booking,
-          user:    current_user,
-          amount:  total_amount,
-          status:  "pending"
+          current_user: current_user,
+          total_amount: total_amount
         )
-
-        rewrite_coupon_usage!(booking:, coupon:, current_user:)
 
         ctx[:model] = booking
         ctx[:payment] = payment
@@ -205,8 +261,12 @@ module Bookings
       false
     end
 
-    def create_tickets!(booking:, show:, seat_ids:, section_by_seat:, price_by_section:)
+    def sync_tickets!(booking:, show:, seat_ids:, section_by_seat:, price_by_section:)
+      existing_valid_tickets = booking.tickets.where(status: "valid").index_by(&:seat_id)
+
       seat_ids.each do |seat_id|
+        next if existing_valid_tickets.key?(seat_id)
+
         seat    = section_by_seat[seat_id]
         section = seat&.seat_section
         price   = price_by_section[section&.id]&.base_price.to_f
@@ -223,11 +283,34 @@ module Bookings
       end
     end
 
+    def upsert_pending_payment!(booking:, current_user:, total_amount:)
+      payment = booking.payments.where(status: "pending").order(created_at: :desc).first
+
+      if payment
+        payment.update!(amount: total_amount)
+        return payment
+      end
+
+      ::Payment.create!(
+        booking: booking,
+        user: current_user,
+        amount: total_amount,
+        status: "pending"
+      )
+    end
+
     # If any step after lock_seats fails, release the acquired locks
     # so those seats become available again immediately.
-    def release_locks_on_failure(ctx, lock_token: nil, **)
+    def release_locks_on_failure(ctx, lock_token: nil, newly_locked_seat_ids: [], **)
       return unless lock_token
-      ShowSeatStates::Release.call(params: { lock_token: lock_token })
+      return if newly_locked_seat_ids.empty?
+
+      ShowSeatStates::Release.call(
+        params: {
+          lock_token: lock_token,
+          seat_ids: newly_locked_seat_ids
+        }
+      )
     end
 
     def collect_errors(ctx, model: nil, **)

@@ -71,9 +71,12 @@ export const apiSlice = createApi({
       providesTags: (_result, _error, bookingId) => [{ type: 'Booking', id: bookingId }],
     }),
     getCoupons: builder.query({
-      query: () => '/api/v1/coupons',
+      query: (params = {}) => ({
+        url: '/api/v1/coupons',
+        params,
+      }),
       transformResponse: (response) => Array.isArray(response) ? response : (response?.coupons || []),
-      providesTags: ['Coupon'],
+      providesTags: (_result, _error, params = {}) => ['Coupon', ...(params.booking_id ? [{ type: 'Coupon', id: `booking-${params.booking_id}` }] : [])],
     }),
     getTheatres: builder.query({
       query: (params = {}) => ({
@@ -331,14 +334,20 @@ export const apiSlice = createApi({
         url: `/api/v1/bookings/${bookingId}/confirm_payment`,
         method: 'POST',
       }),
-      invalidatesTags: (_result, _error, bookingId) => ['Booking', { type: 'Booking', id: bookingId }],
+      invalidatesTags: (result, _error, bookingId) => [
+        'Booking',
+        'Coupon',
+        { type: 'Booking', id: bookingId },
+        { type: 'Coupon', id: `booking-${bookingId}` },
+        ...(result?.show?.id ? [{ type: 'Show', id: `seats-${result.show.id}` }] : []),
+      ],
     }),
     cancelBooking: builder.mutation({
       query: (bookingId) => ({
         url: `/api/v1/bookings/${bookingId}/cancel`,
         method: 'POST',
       }),
-      invalidatesTags: (_result, _error, bookingId) => ['Booking', { type: 'Booking', id: bookingId }, 'Show'],
+      invalidatesTags: (_result, _error, bookingId) => ['Booking', 'Coupon', { type: 'Booking', id: bookingId }, { type: 'Coupon', id: `booking-${bookingId}` }, 'Show'],
     }),
     applyBookingCoupon: builder.mutation({
       query: ({ bookingId, couponCode }) => ({
@@ -346,7 +355,7 @@ export const apiSlice = createApi({
         method: 'POST',
         body: { coupon_code: couponCode },
       }),
-      invalidatesTags: (_result, _error, { bookingId }) => ['Booking', { type: 'Booking', id: bookingId }],
+      invalidatesTags: (_result, _error, { bookingId }) => ['Booking', 'Coupon', { type: 'Booking', id: bookingId }, { type: 'Coupon', id: `booking-${bookingId}` }],
     }),
     createReferenceItem: builder.mutation({
       query: ({ apiPath, paramKey, payload }) => ({

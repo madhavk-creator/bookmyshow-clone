@@ -8,6 +8,7 @@ module Bookings
 
     step :find_booking
     step :authorize_booking
+    step :refresh_pending_expiration
     step :validate_cancellable
     step :cancel_transactionally
     fail :collect_errors
@@ -29,9 +30,19 @@ module Bookings
       false
     end
 
+    def refresh_pending_expiration(ctx, model:, **)
+      ctx[:model] = model.refresh_expiration!
+      if ctx[:model].present?
+        return true
+      end
+
+      ctx[:errors] = { booking: [ "Not found" ] }
+      false
+    end
+
     def validate_cancellable(ctx, model:, **)
-      unless model.status_confirmed?
-        ctx[:errors] = { base: [ "Only confirmed bookings can be cancelled (current: #{model.status})" ] }
+      unless model.status_pending? || model.status_confirmed?
+        ctx[:errors] = { base: [ "Only pending or confirmed bookings can be cancelled (current: #{model.status})" ] }
         return false
       end
 
@@ -39,6 +50,8 @@ module Bookings
     end
 
     def cancel_transactionally(ctx, model:, **)
+      return discard_pending_booking(ctx, model) if model.status_pending?
+
       valid_tickets = model.tickets.where(status: "valid").to_a
       seat_ids = valid_tickets.map(&:seat_id)
       payment = model.payments.find_by(status: "completed")
@@ -69,6 +82,25 @@ module Bookings
       ctx[:valid_tickets] = valid_tickets
       true
     rescue ActiveRecord::RecordInvalid => e
+      ctx[:errors] = { base: [ e.message ] }
+      false
+    end
+
+    def discard_pending_booking(ctx, model)
+      ActiveRecord::Base.transaction do
+        ShowSeatState.where(lock_token: model.lock_token, status: "locked").delete_all
+        model.destroy!
+      end
+
+      ctx[:discarded] = true
+      ctx[:discarded_booking_id] = model.id
+      ctx[:show_id] = model.show_id
+      ctx[:model] = model
+      true
+    rescue ActiveRecord::RecordInvalid => e
+      ctx[:errors] = { base: [ e.message ] }
+      false
+    rescue ActiveRecord::ActiveRecordError => e
       ctx[:errors] = { base: [ e.message ] }
       false
     end

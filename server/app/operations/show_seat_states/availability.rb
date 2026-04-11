@@ -26,7 +26,7 @@ module ShowSeatStates
       true
     end
 
-    def build_payload(ctx, show:, **)
+    def build_payload(ctx, show:, current_user: nil, **)
       layout   = show.seat_layout
       sections = layout.seat_sections.order(:rank).includes(:seats)
 
@@ -47,8 +47,8 @@ module ShowSeatStates
 
         serialized_seats = seats.map do |seat|
           state = state_by_seat_id[seat.id]
-          status = !seat.is_active ? "inactive" : (state ? state.effective_status : "available")
-          counts[status.to_sym] += 1
+          status = seat_status_for(seat:, state:, current_user:)
+          counts[status == "held_by_you" ? :locked : status.to_sym] += 1
 
           {
             id:            seat.id,
@@ -91,6 +91,19 @@ module ShowSeatStates
 
     def collect_errors(ctx, **)
       ctx[:errors] ||= { base: [ "Could not load seat availability" ] }
+    end
+
+    private
+
+    def seat_status_for(seat:, state:, current_user:)
+      return "inactive" unless seat.is_active
+      return "available" unless state
+
+      if state.status_locked? && current_user.present? && state.locked_by_user_id == current_user.id && !state.lock_expired?
+        return "held_by_you"
+      end
+
+      state.effective_status
     end
   end
 end

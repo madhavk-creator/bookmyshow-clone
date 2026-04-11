@@ -9,6 +9,6 @@ class Screen < ApplicationRecord
   enum :status, { active: "active", inactive: "inactive" }
 
   validates :name, presence: true, uniqueness: { scope: :theatre_id }
-  validates :total_rows, :total_columns, numericality: { only_integer: true, greater_than: 0 }
+  validates :total_rows, :total_columns, numericality: { only_integer: true, greater_than: 0, less_than: 50 }
   validates :total_seats, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 end

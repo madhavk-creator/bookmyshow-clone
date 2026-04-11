@@ -8,6 +8,7 @@ module Bookings
         status: booking.status,
         total_amount: booking.total_amount,
         booking_time: booking.booking_time,
+        lock_expires_at: booking.current_lock_expires_at,
         show: {
           id: booking.show.id,
           start_time: booking.show.start_time,
@@ -35,6 +36,7 @@ module Bookings
       base[:tickets] = booking.tickets.map do |ticket|
         {
           id: ticket.id,
+          seat_id: ticket.seat_id,
           seat_label: ticket.seat_label,
           section_name: ticket.section_name,
           price: ticket.price,

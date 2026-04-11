@@ -8,7 +8,7 @@ class Seat < ApplicationRecord
     recliner: "recliner",
     wheelchair: "wheelchair",
     companion: "companion",
-    couple: "couple"
+    lounge: "lounge"
   }, prefix: true
 
   before_validation :normalize_row_label, :assign_label
@@ -20,6 +20,7 @@ class Seat < ApplicationRecord
   validates :x_span, :y_span, numericality: { only_integer: true, greater_than: 0 }
   validates :grid_column, uniqueness: { scope: [ :seat_layout_id, :grid_row ] }
   validate :section_belongs_to_layout
+  validate :within_layout_grid
 
   private
 
@@ -38,5 +39,17 @@ class Seat < ApplicationRecord
     return if seat_section.seat_layout_id == seat_layout_id
 
     errors.add(:seat_section, "must belong to the same seat layout")
+  end
+
+  def within_layout_grid
+    return if seat_layout.blank? || grid_row.blank? || grid_column.blank?
+
+    if grid_row >= seat_layout.total_rows
+      errors.add(:grid_row, "must be within the layout row count")
+    end
+
+    if grid_column >= seat_layout.total_columns
+      errors.add(:grid_column, "must be within the layout column count")
+    end
   end
 end

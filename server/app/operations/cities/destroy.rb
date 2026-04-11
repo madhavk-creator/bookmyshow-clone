@@ -2,6 +2,7 @@ module Cities
   class Destroy < ::Trailblazer::Operation
     step :find_city
     step :authorize_city
+    step :validate_not_in_use
     step :destroy
     fail :collect_errors
 
@@ -22,11 +23,15 @@ module Cities
       false
     end
 
+    def validate_not_in_use(ctx, model:, **)
+      return true unless model.theatres.exists?
+
+      ctx[:errors] = { base: [ "Cannot delete a city that still has theatres" ] }
+      false
+    end
+
     def destroy(ctx, model:, **)
       model.destroy
-    rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: [ "Cannot delete a city that has theatres" ] }
-      false
     end
 
     def collect_errors(ctx, model:, **)

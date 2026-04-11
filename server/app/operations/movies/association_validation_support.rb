@@ -7,7 +7,10 @@ module Movies
 
     def validate_language_entries(ctx, entries)
       normalized_entries = Array(entries)
-      return [ true, [] ] if normalized_entries.empty?
+      if normalized_entries.empty?
+        ctx[:errors] = { language_entries: [ "At least one language is required" ] }
+        return [ false, [] ]
+      end
 
       invalid_messages = []
 
@@ -38,7 +41,10 @@ module Movies
 
     def validate_format_ids(ctx, format_ids)
       normalized_format_ids = Array(format_ids).compact.uniq
-      return [ true, [] ] if normalized_format_ids.empty?
+      if normalized_format_ids.empty?
+        ctx[:errors] = { format_ids: [ "At least one format is required" ] }
+        return [ false, [] ]
+      end
 
       valid_ids = Format.where(id: normalized_format_ids).pluck(:id)
       invalid_ids = normalized_format_ids - valid_ids

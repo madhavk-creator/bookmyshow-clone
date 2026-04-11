@@ -10,7 +10,7 @@
 #
 # Params:
 #   screen_id, movie_id, seat_layout_id, movie_language_id, movie_format_id,
-#   start_time,
+#   start_time, recurrence_end_date: (optional YYYY-MM-DD),
 #   section_prices: [{ seat_section_id: uuid, base_price: decimal }, ...]
 
 module Shows
@@ -22,10 +22,11 @@ module Shows
     step :find_movie_language
     step :find_movie_format
     step :validate_format_capability
+    step :build_schedule_times
     step :validate_no_overlap
-    step :build_show
+    step :build_shows
     step :validate_section_prices
-    step :persist_show_with_prices
+    step :persist_shows_with_prices
     fail :collect_errors
 
     def find_screen(ctx, params:, **)
@@ -109,9 +110,7 @@ module Shows
     true
     end
 
-    # No two scheduled shows on the same screens may overlap.
-    # Overlap condition: existing.start_time < new.end_time AND existing.end_time > new.start_time
-    def validate_no_overlap(ctx, params:, screen:, movie:, **)
+    def build_schedule_times(ctx, params:, **)
       start_time = Time.zone.parse(params[:start_time].to_s)
 
       unless start_time
@@ -119,35 +118,74 @@ module Shows
         return false
       end
 
-      end_time   = start_time + movie.running_time.minutes
+      recurrence_end_date = parse_recurrence_end_date(params[:recurrence_end_date])
+      if recurrence_end_date == :invalid
+        ctx[:errors] = { recurrence_end_date: [ "is invalid" ] }
+        return false
+      end
 
-      ctx[:start_time] = start_time
-      ctx[:end_time]   = end_time
+      if recurrence_end_date && recurrence_end_date < start_time.to_date
+        ctx[:errors] = { recurrence_end_date: [ "must be on or after the start date" ] }
+        return false
+      end
 
-      overlap = ::Show.where(screen_id: screen.id, status: "scheduled")
-                      .where("start_time < ? AND end_time > ?", end_time, start_time)
-                      .exists?
+      ctx[:schedule_times] =
+        if recurrence_end_date
+          (start_time.to_date..recurrence_end_date).map do |date|
+            Time.zone.local(
+              date.year,
+              date.month,
+              date.day,
+              start_time.hour,
+              start_time.min,
+              start_time.sec
+            )
+          end
+        else
+          [ start_time ]
+        end
 
-      if overlap
-        ctx[:errors] = { start_time: [ "This screen already has a show scheduled during this time" ] }
+      true
+    end
+
+    # No two scheduled shows on the same screens may overlap.
+    # Overlap condition: existing.start_time < new.end_time AND existing.end_time > new.start_time
+    def validate_no_overlap(ctx, screen:, movie:, schedule_times:, **)
+      conflicts = schedule_times.filter_map do |start_time|
+        end_time = start_time + movie.running_time.minutes
+
+        overlap = ::Show.where(screen_id: screen.id, status: "scheduled")
+                        .where("start_time < ? AND end_time > ?", end_time, start_time)
+                        .exists?
+
+        start_time if overlap
+      end
+
+      if conflicts.any?
+        formatted_conflicts = conflicts.map { |time| time.strftime("%b %-d, %Y %-I:%M %p") }.join(", ")
+        ctx[:errors] = { start_time: [ "This screen already has a show scheduled during: #{formatted_conflicts}" ] }
         return false
       end
 
       true
     end
 
-    def build_show(ctx, params:, screen:, movie:, layout:, movie_language:, movie_format:, start_time:, end_time:, **)
-      ctx[:model] = ::Show.new(
-        screen:           screen,
-        movie:            movie,
-        seat_layout:      layout,
-        movie_language:   movie_language,
-        movie_format:     movie_format,
-        start_time:       start_time,
-        end_time:         end_time,
-        total_capacity:   layout.total_seats,
-        status:           "scheduled"
-      )
+    def build_shows(ctx, screen:, movie:, layout:, movie_language:, movie_format:, schedule_times:, **)
+      ctx[:models] = schedule_times.map do |start_time|
+        ::Show.new(
+          screen:           screen,
+          movie:            movie,
+          seat_layout:      layout,
+          movie_language:   movie_language,
+          movie_format:     movie_format,
+          start_time:       start_time,
+          end_time:         start_time + movie.running_time.minutes,
+          total_capacity:   layout.total_seats,
+          status:           "scheduled"
+        )
+      end
+
+      ctx[:model] = ctx[:models].first
     end
 
     # Every section in the layout must have a price entry.
@@ -177,17 +215,19 @@ module Shows
     true
     end
 
-    def persist_show_with_prices(ctx, params:, model:, **)
+    def persist_shows_with_prices(ctx, params:, models:, **)
       price_entries = Array(params[:section_prices])
 
-      model.class.transaction do
-        model.save!
+      ::Show.transaction do
+        models.each do |model|
+          model.save!
 
-        price_entries.each do |entry|
-          model.show_section_prices.create!(
-            seat_section_id: entry[:seat_section_id] || entry["seat_section_id"],
-            base_price:      entry[:base_price]       || entry["base_price"]
-          )
+          price_entries.each do |entry|
+            model.show_section_prices.create!(
+              seat_section_id: entry[:seat_section_id] || entry["seat_section_id"],
+              base_price:      entry[:base_price]       || entry["base_price"]
+            )
+          end
         end
       end
 
@@ -199,6 +239,16 @@ module Shows
 
     def collect_errors(ctx, model: nil, **)
       ctx[:errors] ||= model&.errors&.to_hash(true) || {}
+    end
+
+    private
+
+    def parse_recurrence_end_date(value)
+      return nil if value.blank?
+
+      Date.parse(value.to_s)
+    rescue ArgumentError
+      :invalid
     end
   end
 end

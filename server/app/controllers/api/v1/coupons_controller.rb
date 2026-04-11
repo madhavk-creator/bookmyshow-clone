@@ -2,10 +2,10 @@ module Api
   module V1
     class CouponsController < ApplicationController
       skip_before_action :authenticate!, only: %i[index validate], raise: false
-      before_action :authenticate_optional!, only: %i[validate]
+      before_action :authenticate_optional!, only: %i[index validate]
 
       def index
-        result = run Coupons::Index do |operation_result|
+        result = run Coupons::Index, params: index_params do |operation_result|
           return render json: { coupons: CouponSerializer.many(operation_result[:records]) }, status: :ok
         end
 
@@ -21,6 +21,10 @@ module Api
       end
 
       private
+
+      def index_params
+        params.permit(:booking_id).to_h.deep_symbolize_keys
+      end
 
       def validate_params
         params.permit(:code, :booking_amount).to_h.deep_symbolize_keys

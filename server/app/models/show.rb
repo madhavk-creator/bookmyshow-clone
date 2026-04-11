@@ -28,7 +28,14 @@ class Show < ApplicationRecord
   end
 
   def release_expired_locks!
-    show_seat_states.expired_locks.delete_all
+    expired_scope = show_seat_states.expired_locks
+    lock_tokens = expired_scope.pluck(:lock_token).uniq.compact
+
+    expired_scope.delete_all
+
+    return if lock_tokens.empty?
+
+    bookings.where(lock_token: lock_tokens, status: "pending").find_each(&:refresh_expiration!)
   end
 
   private

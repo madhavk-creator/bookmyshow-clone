@@ -22,6 +22,6 @@ RSpec.describe Bookings::ApplyCoupon do
     expect(result[:model].reload.coupon).to eq(coupon)
     expect(result[:model].total_amount).to eq(150.0)
     expect(payment.reload.amount).to eq(150.0)
-    expect(UserCouponUsage.where(booking: booking, coupon: coupon, user: customer).count).to eq(1)
+    expect(UserCouponUsage.where(booking: booking, coupon: coupon, user: customer).count).to eq(0)
   end
 end

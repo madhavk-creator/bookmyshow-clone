@@ -39,4 +39,22 @@ RSpec.describe Movies::Create do
       expect(movie.cast_members.pluck(:name)).to include("Leonardo DiCaprio", "Christopher Nolan")
     end
   end
+
+  it "requires at least one language and one format" do
+    admin = create(:user, :admin)
+
+    result = Movies::Create.call(
+      current_user: admin,
+      params: {
+        title: "Incomplete Movie",
+        genre: "Drama",
+        rating: "UA",
+        language_entries: [],
+        format_ids: []
+      }
+    )
+
+    expect(result).not_to be_success
+    expect(result[:errors]).to include(language_entries: [ "At least one language is required" ])
+  end
 end

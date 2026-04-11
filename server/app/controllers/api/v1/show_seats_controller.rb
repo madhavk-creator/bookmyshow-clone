@@ -1,6 +1,7 @@
 module Api
   module V1
     class ShowSeatsController < ApplicationController
+      before_action :authenticate_optional!, only: %i[availability]
       before_action :authenticate!, only: %i[block unblock]
 
       # GET /api/v1/shows/:show_id/seats

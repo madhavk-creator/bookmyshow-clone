@@ -16,7 +16,7 @@ module Bookings
     end
 
     def refresh_pending_expirations(ctx, records:, **)
-      ctx[:records] = records.map(&:refresh_expiration!)
+      ctx[:records] = records.filter_map(&:refresh_expiration!)
     end
   end
 end

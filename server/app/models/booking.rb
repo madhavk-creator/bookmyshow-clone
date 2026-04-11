@@ -24,6 +24,15 @@ class Booking < ApplicationRecord
     tickets.where(status: "valid").sum(:price).to_f
   end
 
+  def current_lock_expires_at
+    return nil if lock_token.blank?
+
+    ShowSeatState.where(
+      lock_token: lock_token,
+      status: "locked"
+    ).where("locked_until >= ?", Time.current).minimum(:locked_until)
+  end
+
   def refresh_expiration!
     return self unless status_pending?
 
@@ -34,12 +43,18 @@ class Booking < ApplicationRecord
 
     return self if active_locks.exists?
 
-    ShowSeatState.where(lock_token: lock_token, status: "locked").delete_all
-    update!(status: "expired")
-    self
+    discard_expired_pending!
+    nil
   end
 
   private
+
+  def discard_expired_pending!
+    transaction do
+      ShowSeatState.where(lock_token: lock_token, status: "locked").delete_all
+      destroy!
+    end
+  end
 
   def assign_booking_time
     self.booking_time ||= Time.current

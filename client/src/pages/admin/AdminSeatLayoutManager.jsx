@@ -11,7 +11,7 @@ export default function AdminSeatLayoutManager() {
   const { theatreId, screenId } = useParams()
   const navigate = useNavigate()
   const [showModal, setShowModal] = useState(false)
-  const [formData, setFormData] = useState({ name: '', total_rows: '', total_columns: '', screen_label: '' })
+  const [formData, setFormData] = useState({ name: '', screen_label: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const confirm = useConfirm()
@@ -19,7 +19,7 @@ export default function AdminSeatLayoutManager() {
   const [publishSeatLayout] = usePublishSeatLayoutMutation()
   const [archiveSeatLayout] = useArchiveSeatLayoutMutation()
 
-  const base = `/api/v1/theatres/${theatreId}/screens/${screenId}`
+  // const base = `/api/v1/theatres/${theatreId}/screens/${screenId}`
   const { data: screen, isLoading: screenLoading } = useGetScreenQuery({ theatreId, screenId }, { skip: !theatreId || !screenId })
   const {
     data: layouts = [],
@@ -36,10 +36,10 @@ export default function AdminSeatLayoutManager() {
       const data = await createSeatLayout({
         theatreId,
         screenId,
-        seatLayout: { ...formData, total_rows: parseInt(formData.total_rows), total_columns: parseInt(formData.total_columns) },
+        seatLayout: formData,
       }).unwrap()
       setShowModal(false)
-      setFormData({ name: '', total_rows: '', total_columns: '', screen_label: '' })
+      setFormData({ name: '', screen_label: '' })
       showSuccessToast('Seat layout created successfully.')
       navigate(`/admin/layouts/${theatreId}/${screenId}/${data.id}`)
     } catch (err) {
@@ -193,19 +193,11 @@ export default function AdminSeatLayoutManager() {
                     className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
                     placeholder="Standard Layout" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Rows *</label>
-                    <input type="number" required min="1" value={formData.total_rows} onChange={e => setFormData(p => ({ ...p, total_rows: e.target.value }))}
-                      className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
-                      placeholder="10" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Columns *</label>
-                    <input type="number" required min="1" value={formData.total_columns} onChange={e => setFormData(p => ({ ...p, total_columns: e.target.value }))}
-                      className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
-                      placeholder="20" />
-                  </div>
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-700/50 bg-neutral-50 dark:bg-neutral-900/40 px-4 py-3">
+                  <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Screen Size</p>
+                  <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                    This layout will use the selected screen&apos;s fixed grid: {screen?.total_rows} rows × {screen?.total_columns} columns.
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Screen Label</label>

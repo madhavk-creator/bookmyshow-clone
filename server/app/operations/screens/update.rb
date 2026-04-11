@@ -5,6 +5,7 @@ module Screens
     step :authorize_screen
     step :assign_attributes
     step :validate_format_ids
+    step :validate_format_removal
     step :persist_changes
     fail :collect_errors
 
@@ -54,6 +55,28 @@ module Screens
       ctx[:format_ids] = valid_ids
 
       true
+    end
+
+    def validate_format_removal(ctx, model:, **)
+      return true unless ctx.key?(:format_ids)
+
+      existing_format_ids = model.formats.pluck(:id)
+      removed_format_ids = existing_format_ids - ctx[:format_ids]
+      return true if removed_format_ids.empty?
+
+      scheduled_conflicts = model.shows
+                                .where(status: "scheduled")
+                                .joins(movie_format: :format)
+                                .where(movie_formats: { format_id: removed_format_ids })
+                                .distinct
+                                .pluck("formats.code")
+
+      return true if scheduled_conflicts.empty?
+
+      ctx[:errors] = {
+        format_ids: [ "Cannot remove formats with scheduled shows: #{scheduled_conflicts.join(', ')}" ]
+      }
+      false
     end
 
     def persist_changes(ctx, model:, **)

@@ -49,4 +49,20 @@ RSpec.describe Movies::Update do
       expect(updated_movie.cast_members.count).to eq(2)
     end
   end
+
+  it "rejects removing all languages and formats" do
+    admin = create(:user, :admin)
+
+    result = Movies::Update.call(
+      current_user: admin,
+      model: movie,
+      params: {
+        language_entries: [],
+        format_ids: []
+      }
+    )
+
+    expect(result).not_to be_success
+    expect(result[:errors]).to include(language_entries: [ "At least one language is required" ])
+  end
 end

@@ -2,6 +2,7 @@ module Languages
   class Destroy < ::Trailblazer::Operation
     step :find_language
     step :authorize_language
+    step :validate_not_in_use
     step :destroy
     fail :collect_errors
 
@@ -22,11 +23,22 @@ module Languages
       false
     end
 
+    def validate_not_in_use(ctx, model:, **)
+      if model.movie_languages.joins(:shows).where(shows: { status: "scheduled" }).exists?
+        ctx[:errors] = { base: [ "Cannot delete a language that still has scheduled shows" ] }
+        return false
+      end
+
+      if model.movie_languages.exists?
+        ctx[:errors] = { base: [ "Cannot delete a language that is still used by movies" ] }
+        return false
+      end
+
+      true
+    end
+
     def destroy(ctx, model:, **)
       model.destroy
-    rescue ActiveRecord::DeleteRestrictionError
-      ctx[:errors] = { base: [ "Cannot delete a language that is in use by movies" ] }
-      false
     end
 
     def collect_errors(ctx, model:, **)

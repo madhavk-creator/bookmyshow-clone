@@ -1,4 +1,6 @@
 class Coupon < ApplicationRecord
+  CODE_FORMAT = /\A[A-Z0-9]+\z/
+
   has_many :bookings, dependent: :restrict_with_error
   has_many :user_coupon_usages, dependent: :restrict_with_error
 
@@ -9,6 +11,10 @@ class Coupon < ApplicationRecord
   validates :code, :coupon_type, :valid_from, :valid_until, presence: true
 
   validates :code, uniqueness: { case_sensitive: false }
+  validates :code, format: {
+    with: CODE_FORMAT,
+    message: "must contain only uppercase letters and numbers"
+  }
 
   validates :discount_amount, numericality: { greater_than: 0 }, allow_nil: true
 
@@ -24,6 +30,7 @@ class Coupon < ApplicationRecord
 
   validate :validity_window_order
   validate :discount_fields_match_type
+  validate :amount_discount_within_minimum_booking_amount
 
   scope :active, -> {
     where("valid_from <= ? AND valid_until >= ?", Time.current, Time.current)
@@ -65,5 +72,13 @@ class Coupon < ApplicationRecord
     when "percentage"
       errors.add(:discount_percentage, "must be present for percentage coupons") if discount_percentage.blank?
     end
+  end
+
+  def amount_discount_within_minimum_booking_amount
+    return unless coupon_type_amount?
+    return if discount_amount.blank? || minimum_booking_amount.blank?
+    return if discount_amount <= minimum_booking_amount
+
+    errors.add(:discount_amount, "cannot be greater than the minimum booking amount")
   end
 end

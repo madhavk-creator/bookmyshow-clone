@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, MapPin, PlayCircle, Loader, Film } from 'lucide-react'
+import { Loader, Clock, MapPin, PlayCircle, Film } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { useGetCitiesQuery, useGetMoviesQuery } from '../store/apiSlice'
 import { selectSelectedCity, setSelectedCity } from '../store/citySlice'
+import { SkeletonCard } from '../components/ui/Skeleton'
+import HeroCarousel from '../components/ui/HeroCarousel'
+
 
 export default function Home() {
   const navigate = useNavigate()
@@ -38,45 +41,13 @@ export default function Home() {
 
   return (
     <div className="flex-1 w-full bg-neutral-50 dark:bg-[#0b090f]">
-      {/* HERO SECTION */}
-      <section className="relative w-full h-[60vh] min-h-[500px] flex items-center justify-center overflow-hidden">
-        {/* Placeholder Hero Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 to-[#0b090f] z-0" />
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2670&auto=format&fit=crop')] opacity-20 bg-cover bg-center filter mix-blend-overlay z-0" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b090f] via-transparent to-transparent z-10" />
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="relative z-20 text-center px-4 max-w-4xl mx-auto space-y-6"
-        >
-          <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight glow-text leading-tight">
-            Discover The Best <br/> <span className="text-primary-400">Cinematic Experiences</span>
-          </h1>
-          <p className="text-xl text-neutral-300 font-medium text-white tracking-tight glow-text leading-tight">Watch your favorite films on the big screen. Experience convenience like never before.</p>
-          <p className="text-xl text-neutral-300 font-medium text-white tracking-tight glow-text leading-tight">Book tickets, choose seats, and enjoy exclusive offers all in one place.</p>
-          <p className="text-sm text-neutral-500">Select your city to find nearby theaters and showtimes</p>
-          
-          <div className="mt-8 flex justify-center">
-            <div className="glass-card p-2 inline-flex items-center space-x-2 rounded-2xl w-full max-w-md backdrop-blur-xl bg-black/40 border-white/10">
-              <MapPin className="text-primary-400 ml-4 w-6 h-6" />
-              <select 
-                title="Select City"
-                aria-label="Select City"
-                className="bg-transparent border-none text-white text-lg font-medium focus:ring-0 w-full p-3 outline-none cursor-pointer appearance-none"
-                value={selectedCity}
-                onChange={(e) => dispatch(setSelectedCity(e.target.value))}
-              >
-                <option value="" disabled className="text-black">Choose your city</option>
-                {cities.map(city => (
-                  <option key={city.id} value={city.id} className="text-black">{city.name}, {city.state}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </motion.div>
-      </section>
+      {/* HERO CAROUSEL */}
+      <HeroCarousel
+        movies={movies}
+        cities={cities}
+        selectedCity={selectedCity}
+        onCityChange={(id) => dispatch(setSelectedCity(id))}
+      />
 
       {/* MOVIES GRID */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -85,14 +56,16 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Now Showing</h2>
             <p className="text-neutral-500 dark:text-neutral-400 font-medium">Trending movies tailored for you</p>
           </div>
-          <button className="text-primary-600 dark:text-primary-400 font-semibold hover:underline hidden sm:block">
+          {/* <button className="text-primary-600 dark:text-primary-400 font-semibold hover:underline hidden sm:block">
             View All Movies &rarr;
-          </button>
+          </button> */}
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader className="w-10 h-10 text-primary-500 animate-spin" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            {[...Array(8)].map((_, i) => (
+              <SkeletonCard key={i} className="" />
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">

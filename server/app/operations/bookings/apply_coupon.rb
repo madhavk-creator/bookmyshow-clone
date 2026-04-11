@@ -62,7 +62,6 @@ module Bookings
         if params[:coupon_code].blank?
           booking.update!(coupon: nil, total_amount: subtotal)
           booking.payments.where(status: "pending").each { |p| p.update!(amount: subtotal) }
-          rewrite_coupon_usage!(booking:, coupon: nil, current_user:)
           ctx[:model] = booking
           return true
         end
@@ -82,8 +81,6 @@ module Bookings
 
         booking.update!(coupon: coupon, total_amount: total_amount)
         booking.payments.where(status: "pending").each { |p| p.update!(amount: total_amount) }
-
-        rewrite_coupon_usage!(booking:, coupon:, current_user:)
 
         ctx[:model] = booking
         true

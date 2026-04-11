@@ -37,5 +37,35 @@ RSpec.describe "Formats operations auth and lookup" do
       expect(result).not_to be_success
       expect(result[:errors][:base]).to include("Format not found")
     end
+
+    it "blocks deleting a format that still has scheduled shows" do
+      admin = create(:user, :admin)
+      format = create(:format, code: "imax")
+      vendor = create(:user, :vendor)
+      theatre = create(:theatre, vendor: vendor)
+      screen = create(:screen, theatre: theatre)
+      create(:screen_capability, screen: screen, format: format)
+      movie = create(:movie)
+      movie_language = create(:movie_language, movie: movie)
+      movie_format = create(:movie_format, movie: movie, format: format)
+      layout = create(:seat_layout, :published, screen: screen)
+      create(
+        :show,
+        screen: screen,
+        seat_layout: layout,
+        movie: movie,
+        movie_language: movie_language,
+        movie_format: movie_format,
+        status: :scheduled
+      )
+
+      result = Formats::Destroy.call(
+        current_user: admin,
+        params: { id: format.id }
+      )
+
+      expect(result).not_to be_success
+      expect(result[:errors][:base]).to include("Cannot delete a format that is still enabled on screens")
+    end
   end
 end

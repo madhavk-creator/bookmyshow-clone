@@ -75,10 +75,28 @@ export default function AdminMovies() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setSubmitting(true)
     setError(null)
+
+    const runningTime = parseInt(formData.running_time, 10) || 0
+
+    if (formData.format_ids.length === 0) {
+      setError('Select at least one format.')
+      return
+    }
+
+    if (formData.language_entries.length === 0) {
+      setError('Select at least one language.')
+      return
+    }
+
+    if (runningTime > 250) {
+      setError('Running time cannot be more than 250 minutes.')
+      return
+    }
+
+    setSubmitting(true)
     try {
-      const payload = { ...formData, running_time: parseInt(formData.running_time) || 0 }
+      const payload = { ...formData, running_time: runningTime }
       if (editing) {
         await updateMovie({ id: editing.id, movie: payload }).unwrap()
       } else {
@@ -214,7 +232,7 @@ export default function AdminMovies() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Running Time (min)</label>
-                    <input type="number" name="running_time" value={formData.running_time} onChange={handleChange} min="1" className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all" placeholder="166" />
+                    <input type="number" name="running_time" value={formData.running_time} onChange={handleChange} min="1" max="250" className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all" placeholder="166" />
                   </div>
                   <div className="space-y-1">
                     <DateFieldPanel
@@ -236,7 +254,7 @@ export default function AdminMovies() {
                 {/* Formats */}
                 {formats.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Formats</label>
+                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Formats *</label>
                     <div className="flex flex-wrap gap-2">
                       {formats.map(fmt => (
                         <button type="button" key={fmt.id} onClick={() => toggleFormat(fmt.id)}
@@ -245,13 +263,14 @@ export default function AdminMovies() {
                         </button>
                       ))}
                     </div>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 ml-1">Choose at least one format.</p>
                   </div>
                 )}
 
                 {/* Languages */}
                 {languages.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Languages</label>
+                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Languages *</label>
                     <div className="flex flex-wrap gap-2">
                       {languages.map(lang => (
                         <button type="button" key={lang.id} onClick={() => toggleLanguage(lang.id)}
@@ -260,6 +279,7 @@ export default function AdminMovies() {
                         </button>
                       ))}
                     </div>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 ml-1">Choose at least one language.</p>
                   </div>
                 )}
 

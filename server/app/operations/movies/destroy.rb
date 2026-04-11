@@ -2,6 +2,7 @@ module Movies
   class Destroy < ::Trailblazer::Operation
     step :find_movie
     step :authorize_movie
+    step :ensure_no_active_shows
     step :destroy_movie
     fail :collect_errors
 
@@ -19,6 +20,13 @@ module Movies
       return true if Pundit.policy!(current_user, model).destroy?
 
       ctx[:errors] = { base: [ "Not authorized to delete this movie" ] }
+      false
+    end
+
+    def ensure_no_active_shows(ctx, model:, **)
+      return true unless model.shows.where(status: "scheduled").where("end_time > ?", Time.current).exists?
+
+      ctx[:errors] = { base: [ "Cannot delete a movie while it has running or upcoming shows" ] }
       false
     end
 

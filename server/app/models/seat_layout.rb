@@ -12,6 +12,7 @@ class SeatLayout < ApplicationRecord
   validates :total_seats, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :only_one_published_per_screen, if: :status_published?
   before_validation :assign_version_number, on: :create
+  before_validation :sync_dimensions_from_screen
 
   private
 
@@ -25,6 +26,13 @@ class SeatLayout < ApplicationRecord
     return unless SeatLayout.where(screen_id: screen_id, status: "published")
                             .where.not(id: id).exists?
     errors.add(:status, "another layout is already published for this screens")
+  end
+
+  def sync_dimensions_from_screen
+    return unless screen
+
+    self.total_rows = screen.total_rows
+    self.total_columns = screen.total_columns
   end
 
   scope :published_first, -> { order(published_at: :desc, created_at: :desc) }

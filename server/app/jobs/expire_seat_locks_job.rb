@@ -14,15 +14,10 @@ class ExpireSeatLocksJob < ApplicationJob
     # Group by lock_token to find associated bookings
     lock_tokens = expired.pluck(:lock_token).uniq.compact
 
-    ActiveRecord::Base.transaction do
-      # Release the expired locks first
-      expired.delete_all
+    expired.delete_all
 
-      # Expire any pending bookings that held these locks
-      # Booking stores lock_token so we can correlate directly
-      if lock_tokens.any?
-        Booking.where(lock_token: lock_tokens, status: "pending").update_all(status: "expired")
-      end
-    end
+    return if lock_tokens.empty?
+
+    Booking.where(lock_token: lock_tokens, status: "pending").find_each(&:refresh_expiration!)
   end
 end

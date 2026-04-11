@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Loader, Star, Clock, Ticket } from 'lucide-react'
 import { useGetMovieQuery, useGetMovieReviewsQuery } from '../store/apiSlice'
+import { Skeleton } from '../components/ui/Skeleton'
 
 export default function PublicMovieDetail() {
   const { id } = useParams()
@@ -13,8 +14,42 @@ export default function PublicMovieDetail() {
   } = useGetMovieReviewsQuery({ movieId: id, perPage: 10 }, { skip: !id })
   const loading = movieLoading || movieFetching || reviewsLoading || reviewsFetching
 
-  if (loading) return <div className="flex justify-center py-20"><Loader className="w-10 h-10 animate-spin text-primary-500" /></div>
-  if (!movie) return <div className="text-center py-20 text-neutral-500">Movie not found</div>
+  if (loading) return (
+    <div className="min-h-screen bg-neutral-50 dark:bg-[#0b090f] pb-20 fade-in">
+      <div className="relative w-full h-[50vh] min-h-[400px]">
+        <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
+        <div className="absolute bottom-0 left-0 w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-10 flex flex-col md:flex-row items-end gap-8 z-10">
+          <Skeleton className="w-48 h-72 rounded-2xl hidden md:block" />
+          <div className="flex-1 space-y-4 w-full">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-12 w-3/4 md:w-1/2" />
+            <Skeleton className="h-6 w-64" />
+          </div>
+          <Skeleton className="w-full md:w-48 h-14 rounded-xl" />
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-12">
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-5/6" />
+            <Skeleton className="h-6 w-4/6" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+  if (!movie) {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-[#0b090f] flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-3">This movie is not available right now</h1>
+          <p className="text-neutral-500 dark:text-neutral-400">It may have been removed or the link may no longer be valid.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-[#0b090f] pb-20 fade-in">

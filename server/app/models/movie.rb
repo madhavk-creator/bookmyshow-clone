@@ -10,5 +10,5 @@ class Movie < ApplicationRecord
   enum :rating, { u: "U", ua: "UA", a: "A", s: "S" }, prefix: true
 
   validates :title, :genre, :rating, presence: true
-  validates :running_time, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+  validates :running_time, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 250 }, allow_nil: true
 end

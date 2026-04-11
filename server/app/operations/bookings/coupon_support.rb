@@ -55,12 +55,12 @@ module Bookings
       false
     end
 
-    def rewrite_coupon_usage!(booking:, coupon:, current_user:)
+    def sync_coupon_usage_after_confirmation!(booking:, current_user:)
       ::UserCouponUsage.where(booking_id: booking.id).destroy_all
-      return if coupon.nil?
+      return if booking.coupon.nil?
 
       ::UserCouponUsage.create!(
-        coupon: coupon,
+        coupon: booking.coupon,
         user: current_user,
         booking: booking,
         used_at: Time.current

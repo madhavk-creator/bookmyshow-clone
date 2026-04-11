@@ -301,9 +301,9 @@ Do not duplicate pricing semantics in another field unless you need a distinct o
 | label | string | stored snapshot like `B12` |
 | grid_row | integer | row coordinate for UI |
 | grid_column | integer | column coordinate for UI |
-| x_span | integer | default 1, useful for recliners/couple seats |
+| x_span | integer | default 1, useful for recliners/lounge seats |
 | y_span | integer | default 1 |
-| seat_kind | enum/string | `standard`, `recliner`, `wheelchair`, `companion`, `couple` |
+| seat_kind | enum/string | `standard`, `recliner`, `wheelchair`, `companion`, `lounge` |
 | is_accessible | boolean | default false |
 | is_active | boolean | default true |
 | created_at | datetime | |

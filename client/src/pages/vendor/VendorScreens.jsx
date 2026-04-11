@@ -67,11 +67,20 @@ export default function VendorScreens() {
     setSubmitting(true)
     setError(null)
 
+    const totalRows = parseInt(formData.total_rows, 10)
+    const totalColumns = parseInt(formData.total_columns, 10)
+
+    if (totalRows >= 50 || totalColumns >= 50) {
+      setError('Rows and columns must both be less than 50.')
+      setSubmitting(false)
+      return
+    }
+
     try {
       const payload = {
         ...formData,
-        total_rows: parseInt(formData.total_rows),
-        total_columns: parseInt(formData.total_columns),
+        total_rows: totalRows,
+        total_columns: totalColumns,
       }
 
       if (editingScreen) {
@@ -270,13 +279,13 @@ export default function VendorScreens() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Rows *</label>
-                    <input type="number" name="total_rows" required value={formData.total_rows} onChange={handleChange} min="1"
+                    <input type="number" name="total_rows" required value={formData.total_rows} onChange={handleChange} min="1" max="49"
                       className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all"
                       placeholder="10" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 ml-1">Columns *</label>
-                    <input type="number" name="total_columns" required value={formData.total_columns} onChange={handleChange} min="1"
+                    <input type="number" name="total_columns" required value={formData.total_columns} onChange={handleChange} min="1" max="49"
                       className="w-full bg-white dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700/50 text-neutral-900 dark:text-neutral-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all"
                       placeholder="20" />
                   </div>

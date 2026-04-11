@@ -1,6 +1,7 @@
 module ShowSeatStates
   class Lock < ::Trailblazer::Operation
     step :find_show
+    step :release_expired_locks
     step :validate_seats
     step :acquire_locks
     fail :collect_errors
@@ -12,6 +13,11 @@ module ShowSeatStates
         return false
       end
 
+      true
+    end
+
+    def release_expired_locks(_ctx, show:, **)
+      show.release_expired_locks!
       true
     end
 
@@ -49,7 +55,7 @@ module ShowSeatStates
 
     def acquire_locks(ctx, params:, show:, seats:, **)
       lock_token  = params[:lock_token]
-      locked_until = Time.current + ShowSeatState::LOCK_DURATION
+      locked_until = params[:locked_until] || (Time.current + ShowSeatState::LOCK_DURATION)
 
       locked = []
 
